@@ -21,7 +21,7 @@ class App extends BaseConfig
     /**
      * Allowed Hostnames in the Site URL other than the hostname in the baseURL.
      */
-    public array $allowedHostnames = ['157.11.1.214', 'localhost', '127.0.0.1'];
+    public array $allowedHostnames = ['osis.smk11maret.id', '157.11.1.214', 'localhost', '127.0.0.1'];
 
     /**
      * --------------------------------------------------------------------------
