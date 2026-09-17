@@ -26,10 +26,13 @@
     </div>
     <div class="col-12 col-md-4 text-md-end mt-3 mt-md-0 no-print d-flex flex-wrap justify-content-md-end gap-2">
         <a href="<?= site_url('admin/monitoring/export-guru-excel?' . http_build_query(['periode' => $periode, 'bulan' => $bulan, 'tahun' => $tahun, 'semester' => $semester])) ?>" class="btn btn-outline-success rounded-3 px-3 shadow-sm" title="Unduh Rekap Presensi Guru ke Excel">
-            <i class="bi bi-file-earmark-excel-fill me-1"></i> Excel Presensi Guru
+            <i class="bi bi-file-earmark-excel-fill me-1"></i> Excel Guru
+        </a>
+        <a href="<?= site_url('admin/monitoring/export-siswa-excel?' . http_build_query(['periode' => $periode, 'bulan' => $bulan, 'tahun' => $tahun, 'semester' => $semester])) ?>" class="btn btn-outline-primary rounded-3 px-3 shadow-sm" title="Unduh Monitoring Presensi Siswa ke Excel">
+            <i class="bi bi-file-earmark-excel-fill me-1"></i> Excel Siswa
         </a>
         <button type="button" class="btn btn-outline-secondary btn-print rounded-3 px-3 shadow-sm" onclick="window.print()">
-            <i class="bi bi-printer-fill me-1"></i> Cetak Laporan
+            <i class="bi bi-printer-fill me-1"></i> Cetak
         </button>
     </div>
 </div>

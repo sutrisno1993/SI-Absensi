@@ -153,17 +153,23 @@ class WalasController extends BaseController
             return redirect()->to('/walas')->with('error', 'Anda belum ditugaskan mengampu kelas.');
         }
 
-        $bulan = $this->request->getGet('bulan') ?: date('m');
-        $tahun = $this->request->getGet('tahun') ?: date('Y');
+        $periode  = $this->request->getGet('periode') ?: ($this->request->getGet('semester') ? 'semester' : 'bulan');
+        $bulan    = (int)($this->request->getGet('bulan') ?: date('n'));
+        $tahun    = (int)($this->request->getGet('tahun') ?: date('Y'));
+        $semester = $this->request->getGet('semester') ?: (date('n') >= 7 ? 'ganjil' : 'genap');
 
-        $rekap = $this->absensiModel->getRekapKelas((int)$kelas['id'], $bulan, $tahun);
+        [$startDate, $endDate, $labelPeriode] = $this->absensiModel->resolveDateFilter($periode, $bulan, $tahun, $semester);
+        $rekap = $this->absensiModel->getRekapKelas((int)$kelas['id'], $startDate, $endDate);
 
         return view('walas/rekap', [
-            'title' => 'Rekap Presensi Kelas ' . $kelas['nama_kelas'],
-            'kelas' => $kelas,
-            'bulan' => $bulan,
-            'tahun' => $tahun,
-            'rekap' => $rekap,
+            'title'        => 'Rekap Presensi Kelas ' . $kelas['nama_kelas'],
+            'kelas'        => $kelas,
+            'periode'      => $periode,
+            'bulan'        => $bulan,
+            'tahun'        => $tahun,
+            'semester'     => $semester,
+            'labelPeriode' => $labelPeriode,
+            'rekap'        => $rekap,
         ]);
     }
 
@@ -252,11 +258,14 @@ class WalasController extends BaseController
             return redirect()->to('/walas')->with('error', 'Anda tidak memiliki kelas ampu.');
         }
 
-        $bulan = $this->request->getGet('bulan');
-        $tahun = $this->request->getGet('tahun');
+        $periode  = $this->request->getGet('periode') ?: ($this->request->getGet('semester') ? 'semester' : ($this->request->getGet('bulan') ? 'bulan' : 'all'));
+        $bulan    = (int)($this->request->getGet('bulan') ?: date('n'));
+        $tahun    = (int)($this->request->getGet('tahun') ?: date('Y'));
+        $semester = $this->request->getGet('semester') ?: (date('n') >= 7 ? 'ganjil' : 'genap');
 
-        $rekapSiswa = $this->absensiModel->getRekapKelas((int)$kelas['id'], $bulan, $tahun);
-        $this->exportService->exportKelasPresensi($kelas, $rekapSiswa, $bulan, $tahun);
+        [$startDate, $endDate, $labelPeriode] = $this->absensiModel->resolveDateFilter($periode, $bulan, $tahun, $semester);
+        $rekapSiswa = $this->absensiModel->getRekapKelas((int)$kelas['id'], $startDate, $endDate);
+        $this->exportService->exportKelasPresensi($kelas, $rekapSiswa, $labelPeriode);
     }
 
     /**

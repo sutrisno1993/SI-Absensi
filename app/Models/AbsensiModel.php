@@ -84,9 +84,44 @@ class AbsensiModel extends Model
     }
 
     /**
-     * Menghitung rekapitulasi kehadiran (H, S, I, A) per siswa dalam satu kelas
+     * Helper untuk memetakan filter periode (all, bulan, semester) ke startDate, endDate, dan label
      */
-    public function getRekapKelas(int $kelasId, ?string $bulan = null, ?string $tahun = null): array
+    public function resolveDateFilter(?string $periode = null, $bulan = null, $tahun = null, ?string $semester = null): array
+    {
+        $startDate = null;
+        $endDate   = null;
+        $tahun     = (int)($tahun ?: date('Y'));
+        $label     = 'Semua Waktu (Keseluruhan)';
+
+        if ($periode === 'bulan' || (!empty($bulan) && $periode !== 'semester' && $periode !== 'all')) {
+            $bulan = (int)$bulan;
+            $startDate = sprintf('%04d-%02d-01', $tahun, $bulan);
+            $endDate   = date('Y-m-t', strtotime($startDate));
+            $namaBulan = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+            $label     = "Bulan " . ($namaBulan[$bulan] ?? '') . " " . $tahun;
+        } elseif ($periode === 'semester' || !empty($semester)) {
+            $sem = strtolower((string)$semester) === 'genap' ? 'genap' : 'ganjil';
+            if ($sem === 'genap') {
+                $startDate = sprintf('%04d-01-01', $tahun);
+                $endDate   = sprintf('%04d-06-30', $tahun);
+                $label     = "Semester Genap (Jan - Jun) {$tahun}";
+            } else {
+                $startDate = sprintf('%04d-07-01', $tahun);
+                $endDate   = sprintf('%04d-12-31', $tahun);
+                $label     = "Semester Ganjil (Juli - Des) {$tahun}";
+            }
+        } elseif ($periode === 'all') {
+            $label = 'Semua Waktu (Keseluruhan)';
+        }
+
+        return [$startDate, $endDate, $label];
+    }
+
+    /**
+     * Menghitung rekapitulasi kehadiran (H, S, I, A) per siswa dalam satu kelas
+     * Mendukung format rentang tanggal (YYYY-MM-DD) atau format bulan & tahun
+     */
+    public function getRekapKelas(int $kelasId, ?string $startDateOrBulan = null, ?string $endDateOrTahun = null): array
     {
         $db = $this->db;
         $builder = $db->table('siswa s');
@@ -102,10 +137,16 @@ class AbsensiModel extends Model
         ');
         
         $joinCondition = 'a.siswa_id = s.id';
-        if ($bulan && $tahun) {
-            $joinCondition .= ' AND MONTH(a.tanggal) = ' . (int)$bulan . ' AND YEAR(a.tanggal) = ' . (int)$tahun;
-        } elseif ($tahun) {
-            $joinCondition .= ' AND YEAR(a.tanggal) = ' . (int)$tahun;
+        if ($startDateOrBulan && $endDateOrTahun) {
+            if (strpos($startDateOrBulan, '-') !== false && strpos($endDateOrTahun, '-') !== false) {
+                // Range tanggal spesifik (misal dari semester atau tanggal kustom)
+                $joinCondition .= ' AND a.tanggal >= ' . $db->escape($startDateOrBulan) . ' AND a.tanggal <= ' . $db->escape($endDateOrTahun);
+            } else {
+                // Bulan dan tahun konvensional
+                $joinCondition .= ' AND MONTH(a.tanggal) = ' . (int)$startDateOrBulan . ' AND YEAR(a.tanggal) = ' . (int)$endDateOrTahun;
+            }
+        } elseif ($endDateOrTahun) {
+            $joinCondition .= ' AND YEAR(a.tanggal) = ' . (int)$endDateOrTahun;
         }
 
         $builder->join('absensi a', $joinCondition, 'left');
@@ -174,15 +215,16 @@ class AbsensiModel extends Model
 
 
     /**
-     * Mengambil rekapitulasi global sekolah per kelas
+     * Mengambil rekapitulasi global sekolah per kelas dengan filter rentang tanggal (Bulan/Semester)
      */
-    public function getRekapGlobal(): array
+    public function getRekapGlobal(?string $startDate = null, ?string $endDate = null): array
     {
         $db = $this->db;
         $builder = $db->table('kelas k');
         $builder->select('
             k.id as kelas_id,
             k.nama_kelas,
+            k.shift,
             g.nama_guru as nama_walas,
             COUNT(DISTINCT s.id) as total_siswa,
             COUNT(CASE WHEN a.status = "H" THEN 1 END) as total_h,
@@ -192,8 +234,13 @@ class AbsensiModel extends Model
         ');
         $builder->join('guru g', 'g.id = k.walas_id', 'left');
         $builder->join('siswa s', 's.kelas_id = k.id', 'left');
-        $builder->join('absensi a', 'a.siswa_id = s.id', 'left');
-        $builder->groupBy('k.id, k.nama_kelas, g.nama_guru');
+
+        $joinCondition = 'a.siswa_id = s.id';
+        if ($startDate && $endDate) {
+            $joinCondition .= ' AND a.tanggal >= ' . $db->escape($startDate) . ' AND a.tanggal <= ' . $db->escape($endDate);
+        }
+        $builder->join('absensi a', $joinCondition, 'left');
+        $builder->groupBy('k.id, k.nama_kelas, k.shift, g.nama_guru');
         $builder->orderBy('k.nama_kelas', 'ASC');
 
         return $builder->get()->getResultArray();
@@ -288,7 +335,7 @@ class AbsensiModel extends Model
         $totalAlfa  = (int)($row['total_alfa'] ?? 0);
 
         // Ambil total siswa terlambat dari tabel keterlambatan_siswa
-        $db = \Config\Database::connect();
+        $db = $this->db;
         $builderT = $db->table('keterlambatan_siswa');
         if ($startDate && $endDate) {
             $builderT->where('tanggal >=', $startDate)->where('tanggal <=', $endDate);
@@ -319,7 +366,7 @@ class AbsensiModel extends Model
      */
     public function getPerformaPerKelas(?string $startDate = null, ?string $endDate = null): array
     {
-        $db = \Config\Database::connect();
+        $db = $this->db;
         $dateFilter = '';
         if ($startDate && $endDate) {
             $dateFilter = "AND a.tanggal BETWEEN " . $db->escape($startDate) . " AND " . $db->escape($endDate);

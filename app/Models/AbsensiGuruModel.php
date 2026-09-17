@@ -160,7 +160,7 @@ class AbsensiGuruModel extends Model
      */
     public function getPerformaPerGuru(?string $startDate = null, ?string $endDate = null): array
     {
-        $db = \Config\Database::connect();
+        $db = $this->db;
         $dateFilter = '';
         if ($startDate && $endDate) {
             $dateFilter = "AND ag.tanggal BETWEEN " . $db->escape($startDate) . " AND " . $db->escape($endDate);

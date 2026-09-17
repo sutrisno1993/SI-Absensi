@@ -68,6 +68,7 @@ $routes->group('admin', ['filter' => ['auth', 'role:admin']], static function ($
     // Monitoring Persentase Kehadiran Guru & Siswa
     $routes->get('monitoring', 'AdminController::monitoring');
     $routes->get('monitoring/export-guru-excel', 'AdminController::exportGuruExcel');
+    $routes->get('monitoring/export-siswa-excel', 'AdminController::exportSiswaMonitoringExcel');
 
     // Riwayat Pembinaan Siswa (Anak Bermasalah)
     $routes->get('pembinaan', 'AdminController::pembinaan');

@@ -175,17 +175,23 @@ class PjKelasController extends BaseController
     {
         $kelasId = (int)$this->session->get('ref_id');
         $kelas   = $this->kelasModel->find($kelasId);
-        $bulan   = $this->request->getGet('bulan') ?: date('m');
-        $tahun   = $this->request->getGet('tahun') ?: date('Y');
+        $periode  = $this->request->getGet('periode') ?: ($this->request->getGet('semester') ? 'semester' : 'bulan');
+        $bulan    = (int)($this->request->getGet('bulan') ?: date('n'));
+        $tahun    = (int)($this->request->getGet('tahun') ?: date('Y'));
+        $semester = $this->request->getGet('semester') ?: (date('n') >= 7 ? 'ganjil' : 'genap');
 
-        $rekap = $this->absensiModel->getRekapKelas($kelasId, $bulan, $tahun);
+        [$startDate, $endDate, $labelPeriode] = $this->absensiModel->resolveDateFilter($periode, $bulan, $tahun, $semester);
+        $rekap = $this->absensiModel->getRekapKelas($kelasId, $startDate, $endDate);
 
         return view('pj/rekap', [
-            'title' => 'Rekap Presensi Kelas',
-            'kelas' => $kelas,
-            'bulan' => $bulan,
-            'tahun' => $tahun,
-            'rekap' => $rekap,
+            'title'        => 'Rekap Presensi Kelas',
+            'kelas'        => $kelas,
+            'periode'      => $periode,
+            'bulan'        => $bulan,
+            'tahun'        => $tahun,
+            'semester'     => $semester,
+            'labelPeriode' => $labelPeriode,
+            'rekap'        => $rekap,
         ]);
     }
 }

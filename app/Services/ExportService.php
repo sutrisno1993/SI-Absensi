@@ -14,7 +14,7 @@ class ExportService
     /**
      * 1. Export Rekapitulasi Global Presensi Seluruh Kelas
      */
-    public function exportGlobalPresensi(array $rekapGlobal): void
+    public function exportGlobalPresensi(array $rekapGlobal, string $periodeTitle = 'Semua Waktu (Keseluruhan)'): void
     {
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
@@ -22,7 +22,7 @@ class ExportService
 
         // Header Dokumen
         $sheet->setCellValue('A1', 'SISTEM INFORMASI PRESENSI & PEMBINAAN SISWA (SI-ABSEN)');
-        $sheet->setCellValue('A2', 'REKAPITULASI PRESENSI GLOBAL SELURUH KELAS');
+        $sheet->setCellValue('A2', 'REKAPITULASI PRESENSI GLOBAL - ' . strtoupper($periodeTitle));
         $sheet->setCellValue('A3', 'Dicetak pada: ' . date('d F Y, H:i') . ' WIB');
 
         $sheet->mergeCells('A1:I1');
@@ -125,18 +125,28 @@ class ExportService
     /**
      * 2. Export Laporan Presensi Rombel Kelas (Siswa per Siswa)
      */
-    public function exportKelasPresensi(array $kelas, array $rekapSiswa, ?string $bulan = null, ?string $tahun = null): void
+    public function exportKelasPresensi(array $kelas, array $rekapSiswa, $labelPeriodeOrBulan = null, ?string $tahun = null): void
     {
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Presensi ' . substr($kelas['nama_kelas'], 0, 20));
 
         $namaBulan = [
-            '01' => 'Januari', '02' => 'Februari', '03' => 'Maret', '04' => 'April',
-            '05' => 'Mei', '06' => 'Juni', '07' => 'Juli', '08' => 'Agustus',
-            '09' => 'September', '10' => 'Oktober', '11' => 'November', '12' => 'Desember'
+            '1' => 'Januari', '01' => 'Januari', '2' => 'Februari', '02' => 'Februari',
+            '3' => 'Maret', '03' => 'Maret', '4' => 'April', '04' => 'April',
+            '5' => 'Mei', '05' => 'Mei', '6' => 'Juni', '06' => 'Juni',
+            '7' => 'Juli', '07' => 'Juli', '8' => 'Agustus', '08' => 'Agustus',
+            '9' => 'September', '09' => 'September', '10' => 'Oktober',
+            '11' => 'November', '12' => 'Desember'
         ];
-        $periodeStr = ($bulan && isset($namaBulan[$bulan])) ? $namaBulan[$bulan] . ' ' . ($tahun ?: date('Y')) : 'Seluruh Periode (' . ($tahun ?: date('Y')) . ')';
+
+        if (is_string($labelPeriodeOrBulan) && (strpos($labelPeriodeOrBulan, 'Semester') !== false || strpos($labelPeriodeOrBulan, 'Bulan') !== false || strpos($labelPeriodeOrBulan, 'Semua') !== false)) {
+            $periodeStr = $labelPeriodeOrBulan;
+        } elseif ($labelPeriodeOrBulan && isset($namaBulan[$labelPeriodeOrBulan])) {
+            $periodeStr = 'Bulan ' . $namaBulan[$labelPeriodeOrBulan] . ' ' . ($tahun ?: date('Y'));
+        } else {
+            $periodeStr = 'Seluruh Periode (' . ($tahun ?: date('Y')) . ')';
+        }
 
         // Header Dokumen
         $sheet->setCellValue('A1', 'REKAPITULASI PRESENSI SISWA KELAS ' . strtoupper($kelas['nama_kelas']));
@@ -432,11 +442,11 @@ class ExportService
         $row = 6;
         $totWajib = 0; $totHadir = 0; $totLate = 0;
         foreach ($guruList as $idx => $g) {
-            $wajib = (int)($g['total_wajib'] ?? 0);
+            $wajib = (int)($g['total_wajib'] ?? ($g['total_sesi'] ?? 0));
             $hadir = (int)($g['total_hadir'] ?? 0);
             $late  = (int)($g['total_terlambat'] ?? 0);
-            $sia   = (int)($g['total_sia'] ?? (($g['total_s'] ?? 0) + ($g['total_i'] ?? 0) + ($g['total_a'] ?? 0)));
-            $pct   = (float)($g['persen_kehadiran'] ?? ($wajib > 0 ? round(($hadir / $wajib) * 100, 1) : 0));
+            $sia   = (int)($g['total_sia'] ?? (($g['total_sakit'] ?? ($g['total_s'] ?? 0)) + ($g['total_izin'] ?? ($g['total_i'] ?? 0)) + ($g['total_alfa'] ?? ($g['total_a'] ?? 0))));
+            $pct   = isset($g['persen_kehadiran']) ? (float)$g['persen_kehadiran'] : (isset($g['persen_hadir']) ? (float)$g['persen_hadir'] : ($wajib > 0 ? round(($hadir / $wajib) * 100, 1) : 100));
 
             $totWajib += $wajib;
             $totHadir += $hadir;
@@ -700,6 +710,118 @@ class ExportService
         }
 
         $this->outputFile($spreadsheet, 'Rekap_Keterlambatan_Guru_' . date('Ymd_His') . '.xlsx');
+    }
+
+    /**
+     * 7. Export Monitoring Presensi Siswa & Performa Per Kelas
+     */
+    public function exportSiswaMonitoringExcel(array $statSiswa, array $performaKelas, string $periodeTitle = 'Semua Periode'): void
+    {
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Monitoring Siswa');
+
+        // Header Dokumen
+        $sheet->setCellValue('A1', 'LAPORAN MONITORING PERSENTASE KEHADIRAN SISWA PER KELAS');
+        $sheet->setCellValue('A2', 'Periode: ' . $periodeTitle . ' | SI-ABSEN');
+        $sheet->setCellValue('A3', 'Dicetak pada: ' . date('d F Y, H:i') . ' WIB');
+
+        $sheet->mergeCells('A1:J1');
+        $sheet->mergeCells('A2:J2');
+        $sheet->mergeCells('A3:J3');
+
+        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(13)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('0F172A'));
+        $sheet->getStyle('A2')->getFont()->setBold(true)->setSize(10)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('4338CA'));
+        $sheet->getStyle('A3')->getFont()->setSize(9)->setItalic(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('64748B'));
+
+        // Table Header
+        $headers = ['No', 'Nama Kelas', 'Shift', 'Jumlah Siswa', 'Total Sesi', 'Hadir (H)', 'Sakit (S)', 'Izin (I)', 'Alpa (A)', '% Kehadiran'];
+        $col = 'A';
+        foreach ($headers as $h) {
+            $sheet->setCellValue($col . '5', $h);
+            $col++;
+        }
+
+        $headerStyle = [
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '4338CA']], // Indigo
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+        ];
+        $sheet->getStyle('A5:J5')->applyFromArray($headerStyle);
+        $sheet->getRowDimension(5)->setRowHeight(25);
+
+        $row = 6;
+        $totSiswa = 0; $totSesi = 0; $totH = 0; $totS = 0; $totI = 0; $totA = 0;
+        foreach ($performaKelas as $idx => $pk) {
+            $siswa = (int)($pk['total_siswa'] ?? 0);
+            $sesi  = (int)($pk['total_sesi'] ?? 0);
+            $h     = (int)($pk['total_hadir'] ?? 0);
+            $s     = (int)($pk['total_sakit'] ?? 0);
+            $i     = (int)($pk['total_izin'] ?? 0);
+            $a     = (int)($pk['total_alfa'] ?? 0);
+            $pct   = (float)($pk['persen_hadir'] ?? ($sesi > 0 ? round(($h / $sesi) * 100, 1) : 100));
+
+            $totSiswa += $siswa;
+            $totSesi  += $sesi;
+            $totH     += $h;
+            $totS     += $s;
+            $totI     += $i;
+            $totA     += $a;
+
+            $sheet->setCellValue('A' . $row, $idx + 1);
+            $sheet->setCellValue('B' . $row, $pk['nama_kelas']);
+            $sheet->setCellValue('C' . $row, $pk['shift'] ?? 'Pagi');
+            $sheet->setCellValue('D' . $row, $siswa);
+            $sheet->setCellValue('E' . $row, $sesi);
+            $sheet->setCellValue('F' . $row, $h);
+            $sheet->setCellValue('G' . $row, $s);
+            $sheet->setCellValue('H' . $row, $i);
+            $sheet->setCellValue('I' . $row, $a);
+            $sheet->setCellValue('J' . $row, $pct . '%');
+
+            if ($row % 2 === 1) {
+                $sheet->getStyle("A{$row}:J{$row}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('F8FAFC');
+            }
+
+            $sheet->getStyle("A{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("C{$row}:J{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+            $row++;
+        }
+
+        // Summary Total
+        $grandPct = $totSesi > 0 ? round(($totH / $totSesi) * 100, 1) : 0;
+        $sheet->setCellValue('A' . $row, 'TOTAL SELURUH SISWA SEKOLAH');
+        $sheet->mergeCells("A{$row}:C{$row}");
+        $sheet->setCellValue('D' . $row, $totSiswa);
+        $sheet->setCellValue('E' . $row, $totSesi);
+        $sheet->setCellValue('F' . $row, $totH);
+        $sheet->setCellValue('G' . $row, $totS);
+        $sheet->setCellValue('H' . $row, $totI);
+        $sheet->setCellValue('I' . $row, $totA);
+        $sheet->setCellValue('J' . $row, $grandPct . '%');
+
+        $sheet->getStyle("A{$row}:J{$row}")->getFont()->setBold(true);
+        $sheet->getStyle("A{$row}:J{$row}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('E2E8F0');
+        $sheet->getStyle("A{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+        $sheet->getStyle("D{$row}:J{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getRowDimension($row)->setRowHeight(24);
+
+        // Borders
+        $sheet->getStyle("A5:J{$row}")->applyFromArray([
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                    'color' => ['rgb' => 'CBD5E1'],
+                ],
+            ],
+        ]);
+
+        foreach (range('A', 'J') as $c) {
+            $sheet->getColumnDimension($c)->setAutoSize(true);
+        }
+
+        $this->outputFile($spreadsheet, 'Monitoring_Presensi_Siswa_' . date('Ymd_His') . '.xlsx');
     }
 
     /**
