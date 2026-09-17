@@ -267,9 +267,19 @@
                                     </td>
                                     <td class="text-center">
                                         <?php if (! empty($rp['file_bukti'])): ?>
-                                            <a href="<?= base_url('uploads/pembinaan/' . $rp['file_bukti']) ?>" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill px-2 py-1" title="Buka Dokumen / Foto">
-                                                <i class="bi bi-paperclip me-1"></i>Lihat
-                                            </a>
+                                            <?php
+                                            $ext = strtolower(pathinfo($rp['file_bukti'], PATHINFO_EXTENSION));
+                                            $isImg = in_array($ext, ['jpg', 'jpeg', 'png', 'webp']);
+                                            ?>
+                                            <?php if ($isImg): ?>
+                                                <button type="button" class="btn btn-sm btn-outline-info rounded-pill px-2 py-1" onclick="previewFotoBukti('<?= base_url('uploads/pembinaan/' . $rp['file_bukti']) ?>', '<?= esc($rp['nama_siswa']) ?>', '<?= esc($rp['jenis_tindakan']) ?>')" title="Lihat Foto Bukti">
+                                                    <i class="bi bi-image me-1"></i>Foto Bukti
+                                                </button>
+                                            <?php else: ?>
+                                                <a href="<?= base_url('uploads/pembinaan/' . $rp['file_bukti']) ?>" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill px-2 py-1" title="Buka Dokumen / PDF">
+                                                    <i class="bi bi-file-earmark-pdf me-1"></i>Dokumen
+                                                </a>
+                                            <?php endif; ?>
                                         <?php else: ?>
                                             <span class="text-muted small">-</span>
                                         <?php endif; ?>
@@ -585,16 +595,44 @@
                 </div>
 
                 <div id="detailContainerBukti" class="d-none">
-                    <label class="form-label fw-bold text-dark small mb-1">Berkas Bukti Terlampir:</label>
+                    <label class="form-label fw-bold text-dark small mb-1">Berkas Bukti Terlampir / Foto:</label>
+                    <div id="detailImageWrapper" class="mb-2 text-center d-none">
+                        <img id="detailImgBukti" src="" class="img-fluid rounded-3 border shadow-sm" style="max-height: 260px; object-fit: contain; cursor: pointer;" onclick="previewFotoBukti(this.src, document.getElementById('detailNamaSiswa').innerText, document.getElementById('detailJenisTindakan').innerText)" title="Klik untuk memperbesar">
+                        <div class="text-muted small mt-1"><i class="bi bi-zoom-in me-1"></i>Klik foto untuk memperbesar</div>
+                    </div>
                     <div>
                         <a href="#" target="_blank" class="btn btn-sm btn-outline-primary" id="detailLinkBukti">
-                            <i class="bi bi-file-earmark-arrow-down me-1"></i> Buka / Unduh Berkas Bukti
+                            <i class="bi bi-file-earmark-arrow-down me-1"></i> Buka / Unduh Berkas Lengkap
                         </a>
                     </div>
                 </div>
             </div>
             <div class="modal-footer bg-light py-2 px-3">
-                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Tutup</button>
+                <button type="button" class="btn btn-secondary btn-sm rounded-pill px-3" data-bs-dismiss="modal">Tutup</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Zoom Foto Bukti Pembinaan -->
+<div class="modal fade" id="modalPreviewFotoBukti" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow bg-dark text-white">
+            <div class="modal-header border-secondary py-3">
+                <h6 class="modal-title fw-bold d-flex align-items-center gap-2" id="titlePreviewFotoBukti">
+                    <i class="bi bi-image text-warning"></i>
+                    <span>Foto Bukti Tindakan Pembinaan</span>
+                </h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center p-3" style="background: #000;">
+                <img id="imgPreviewFotoBukti" src="" class="img-fluid rounded-3" style="max-height: 520px; object-fit: contain;">
+            </div>
+            <div class="modal-footer border-secondary py-2 px-3 justify-content-between">
+                <a href="#" id="linkUnduhFotoBukti" target="_blank" class="btn btn-sm btn-outline-light rounded-pill px-3">
+                    <i class="bi bi-download me-1"></i> Buka File Asli / Unduh
+                </a>
+                <button type="button" class="btn btn-secondary btn-sm rounded-pill px-3" data-bs-dismiss="modal">Tutup</button>
             </div>
         </div>
     </div>
@@ -603,6 +641,14 @@
 
 <?= $this->section('scripts') ?>
 <script>
+    function previewFotoBukti(url, namaSiswa, jenisTindakan) {
+        document.getElementById('titlePreviewFotoBukti').innerText = 'Foto Bukti: ' + namaSiswa + ' (' + jenisTindakan + ')';
+        document.getElementById('imgPreviewFotoBukti').src = url;
+        document.getElementById('linkUnduhFotoBukti').href = url;
+        const modal = new bootstrap.Modal(document.getElementById('modalPreviewFotoBukti'));
+        modal.show();
+    }
+
     function lihatDetailCatatan(data) {
         document.getElementById('detailNamaSiswa').innerText = data.nama_siswa + ' (' + data.nisn + ')';
         document.getElementById('detailKelas').innerText = data.nama_kelas;
@@ -613,11 +659,25 @@
 
         const containerBukti = document.getElementById('detailContainerBukti');
         const linkBukti = document.getElementById('detailLinkBukti');
+        const imgWrapper = document.getElementById('detailImageWrapper');
+        const imgEl = document.getElementById('detailImgBukti');
+
         if (data.file_bukti) {
             containerBukti.classList.remove('d-none');
-            linkBukti.href = '<?= base_url('uploads/pembinaan/') ?>' + '/' + data.file_bukti;
+            const fileUrl = '<?= base_url('uploads/pembinaan/') ?>' + '/' + data.file_bukti;
+            linkBukti.href = fileUrl;
+
+            // Cek apakah berkas bertipe gambar
+            const ext = data.file_bukti.split('.').pop().toLowerCase();
+            if (['jpg', 'jpeg', 'png', 'webp'].includes(ext)) {
+                imgEl.src = fileUrl;
+                imgWrapper.classList.remove('d-none');
+            } else {
+                imgWrapper.classList.add('d-none');
+            }
         } else {
             containerBukti.classList.add('d-none');
+            imgWrapper.classList.add('d-none');
         }
 
         const modalEl = document.getElementById('modalDetailPembinaan');
