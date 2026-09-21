@@ -85,25 +85,26 @@
                                 <td><span class="badge bg-light text-dark border font-monospace"><?= esc($s['nisn']) ?></span></td>
                                 <td class="fw-bold text-dark"><?= esc($s['nama_siswa']) ?></td>
                                 <td class="text-center">
+                                    <?php $currentStatus = $s['absensi_id'] ? $s['status'] : null; ?>
                                     <div class="d-inline-flex gap-2">
                                         <!-- Hadir -->
                                         <label>
-                                            <input type="radio" class="status-pill-radio radio-h" name="absensi[<?= $s['siswa_id'] ?>][status]" value="H" <?= ($s['status'] ?? 'H') === 'H' ? 'checked' : '' ?>>
+                                            <input type="radio" class="status-pill-radio radio-h" name="absensi[<?= $s['siswa_id'] ?>][status]" value="H" <?= $currentStatus === 'H' ? 'checked' : '' ?>>
                                             <span class="status-label" title="Hadir">H</span>
                                         </label>
                                         <!-- Sakit -->
                                         <label>
-                                            <input type="radio" class="status-pill-radio" name="absensi[<?= $s['siswa_id'] ?>][status]" value="S" <?= ($s['status'] ?? '') === 'S' ? 'checked' : '' ?>>
+                                            <input type="radio" class="status-pill-radio" name="absensi[<?= $s['siswa_id'] ?>][status]" value="S" <?= $currentStatus === 'S' ? 'checked' : '' ?>>
                                             <span class="status-label" title="Sakit">S</span>
                                         </label>
                                         <!-- Izin -->
                                         <label>
-                                            <input type="radio" class="status-pill-radio" name="absensi[<?= $s['siswa_id'] ?>][status]" value="I" <?= ($s['status'] ?? '') === 'I' ? 'checked' : '' ?>>
+                                            <input type="radio" class="status-pill-radio" name="absensi[<?= $s['siswa_id'] ?>][status]" value="I" <?= $currentStatus === 'I' ? 'checked' : '' ?>>
                                             <span class="status-label" title="Izin">I</span>
                                         </label>
                                         <!-- Alpa -->
                                         <label>
-                                            <input type="radio" class="status-pill-radio" name="absensi[<?= $s['siswa_id'] ?>][status]" value="A" <?= ($s['status'] ?? '') === 'A' ? 'checked' : '' ?>>
+                                            <input type="radio" class="status-pill-radio" name="absensi[<?= $s['siswa_id'] ?>][status]" value="A" <?= $currentStatus === 'A' ? 'checked' : '' ?>>
                                             <span class="status-label" title="Alpa / Tanpa Keterangan">A</span>
                                         </label>
                                     </div>
@@ -136,5 +137,45 @@
             radio.checked = true;
         });
     }
+
+    // Validasi: semua siswa wajib punya status kehadiran sebelum simpan
+    document.querySelector('form[action*="walas/absen/simpan"]').addEventListener('submit', function(e) {
+        const rows = document.querySelectorAll('tbody tr');
+        let belumDiisi = [];
+
+        rows.forEach(function(row) {
+            const radios = row.querySelectorAll('input[type="radio"]');
+            if (radios.length === 0) return; // skip baris kosong
+
+            const ada = Array.from(radios).some(r => r.checked);
+            if (!ada) {
+                const namaSiswa = row.querySelector('td:nth-child(3)');
+                if (namaSiswa) {
+                    belumDiisi.push(namaSiswa.textContent.trim());
+                    row.style.outline = '2px solid #dc3545';
+                    row.style.outlineOffset = '-2px';
+                    row.style.borderRadius = '8px';
+                }
+            } else {
+                row.style.outline = 'none';
+            }
+        });
+
+        if (belumDiisi.length > 0) {
+            e.preventDefault();
+            const maxShow = 5;
+            let pesan = 'Status kehadiran belum dipilih untuk:\n';
+            pesan += belumDiisi.slice(0, maxShow).map((n, i) => (i + 1) + '. ' + n).join('\n');
+            if (belumDiisi.length > maxShow) {
+                pesan += '\n...dan ' + (belumDiisi.length - maxShow) + ' siswa lainnya.';
+            }
+            pesan += '\n\nSilakan pilih status kehadiran (H/S/I/A) untuk semua siswa sebelum menyimpan.';
+            alert(pesan);
+
+            // Scroll ke baris pertama yang belum diisi
+            const firstEmpty = document.querySelector('tbody tr[style*="outline"]');
+            if (firstEmpty) firstEmpty.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    });
 </script>
 <?= $this->endSection() ?>

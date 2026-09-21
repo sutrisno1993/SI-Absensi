@@ -126,8 +126,13 @@ class WalasController extends BaseController
                 return redirect()->back()->with('error', 'Akses ditolak: Terdeteksi manipulasi data siswa.');
             }
 
+            // Validasi: status kehadiran wajib diisi (tidak boleh null/kosong)
+            if (empty($row['status']) || !in_array($row['status'], ['H', 'S', 'I', 'A'])) {
+                return redirect()->back()->with('error', 'Status kehadiran wajib dipilih untuk semua siswa. Pastikan tidak ada yang kosong.');
+            }
+
             $sanitizedData[$siswaId] = [
-                'status'     => in_array($row['status'] ?? 'H', ['H', 'S', 'I', 'A']) ? $row['status'] : 'H',
+                'status'     => $row['status'],
                 'keterangan' => !empty($row['keterangan']) ? trim(strip_tags($row['keterangan'])) : null,
             ];
         }
