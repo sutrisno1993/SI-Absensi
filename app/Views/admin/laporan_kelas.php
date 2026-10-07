@@ -5,7 +5,7 @@
 <nav aria-label="breadcrumb" class="mb-3">
     <ol class="breadcrumb">
         <li class="breadcrumb-item"><a href="<?= site_url('admin') ?>">Dashboard</a></li>
-        <li class="breadcrumb-item"><a href="<?= site_url('admin/laporan?' . http_build_query(['periode' => $periode, 'bulan' => $bulan, 'tahun' => $tahun, 'semester' => $semester])) ?>">Laporan Presensi Sekolah</a></li>
+        <li class="breadcrumb-item"><a href="<?= site_url('admin/laporan?' . http_build_query(['periode' => $periode, 'bulan' => $bulan, 'tahun' => $tahun, 'semester' => $semester, 'tanggal' => $tanggal])) ?>">Laporan Presensi Sekolah</a></li>
         <li class="breadcrumb-item active" aria-current="page">Kelas <?= esc($kelas['nama_kelas']) ?></li>
     </ol>
 </nav>
@@ -22,10 +22,10 @@
         </p>
     </div>
     <div class="col-12 col-md-5 text-md-end mt-3 mt-md-0 d-flex flex-wrap justify-content-md-end gap-2">
-        <a href="<?= site_url('admin/laporan/export-kelas-excel/' . $kelas['id'] . '?' . http_build_query(['periode' => $periode, 'bulan' => $bulan, 'tahun' => $tahun, 'semester' => $semester])) ?>" class="btn btn-outline-success btn-sm">
+        <a href="<?= site_url('admin/laporan/export-kelas-excel/' . $kelas['id'] . '?' . http_build_query(['periode' => $periode, 'bulan' => $bulan, 'tahun' => $tahun, 'semester' => $semester, 'tanggal' => $tanggal])) ?>" class="btn btn-outline-success btn-sm">
             <i class="bi bi-file-earmark-excel-fill me-1"></i> Download Excel (.xlsx)
         </a>
-        <a href="<?= site_url('admin/laporan?' . http_build_query(['periode' => $periode, 'bulan' => $bulan, 'tahun' => $tahun, 'semester' => $semester])) ?>" class="btn btn-outline-secondary btn-sm">
+        <a href="<?= site_url('admin/laporan?' . http_build_query(['periode' => $periode, 'bulan' => $bulan, 'tahun' => $tahun, 'semester' => $semester, 'tanggal' => $tanggal])) ?>" class="btn btn-outline-secondary btn-sm">
             <i class="bi bi-arrow-left me-1"></i> Kembali
         </a>
         <button type="button" class="btn btn-outline-secondary btn-sm" onclick="window.print()">
@@ -36,22 +36,42 @@
 
 <div class="card card-custom border-0 shadow-sm">
     <div class="card-header bg-white border-0 py-3 d-flex flex-wrap align-items-center justify-content-between gap-3">
-        <div class="d-flex align-items-center gap-2">
-            <span class="badge bg-primary px-3 py-2 rounded-pill fs-6">
-                Kelas <?= esc($kelas['nama_kelas']) ?>
-            </span>
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <?php if (! empty($allKelas)): ?>
+                <div class="d-flex align-items-center gap-1">
+                    <span class="small fw-semibold text-secondary">Pindah Kelas:</span>
+                    <select class="form-select form-select-sm w-auto shadow-sm" onchange="window.location.href = '<?= site_url('admin/laporan/kelas/') ?>' + this.value + '?<?= http_build_query(['periode' => $periode, 'bulan' => $bulan, 'tahun' => $tahun, 'semester' => $semester, 'tanggal' => $tanggal]) ?>'">
+                        <?php foreach ($allKelas as $ak): ?>
+                            <option value="<?= $ak['id'] ?>" <?= (int)$ak['id'] === (int)$kelas['id'] ? 'selected' : '' ?>>
+                                Kelas <?= esc($ak['nama_kelas']) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+            <?php else: ?>
+                <span class="badge bg-primary px-3 py-2 rounded-pill fs-6">
+                    Kelas <?= esc($kelas['nama_kelas']) ?>
+                </span>
+            <?php endif; ?>
             <span class="badge bg-light text-muted border px-2 py-2">
                 Total Siswa: <?= count($rekapSiswa) ?> Orang
             </span>
         </div>
 
-        <!-- Filter Periode (Semua Waktu, Per Bulan, Per Semester) -->
+        <!-- Filter Periode (Hari, Minggu, Bulan, Semester, Tahun, Semua Waktu) -->
         <form action="<?= site_url('admin/laporan/kelas/' . $kelas['id']) ?>" method="GET" class="d-flex flex-wrap align-items-center gap-2">
             <select name="periode" class="form-select form-select-sm w-auto shadow-sm" id="selectKelasPeriode" onchange="toggleKelasFilter()">
-                <option value="all" <?= $periode === 'all' ? 'selected' : '' ?>>Semua Waktu</option>
-                <option value="bulan" <?= $periode === 'bulan' ? 'selected' : '' ?>>Per Bulan</option>
+                <option value="hari" <?= $periode === 'hari' ? 'selected' : '' ?>>Per Hari (Harian)</option>
+                <option value="minggu" <?= $periode === 'minggu' ? 'selected' : '' ?>>Per Minggu (Mingguan)</option>
+                <option value="bulan" <?= $periode === 'bulan' ? 'selected' : '' ?>>Per Bulan (Bulanan)</option>
                 <option value="semester" <?= $periode === 'semester' ? 'selected' : '' ?>>Per Semester</option>
+                <option value="tahun" <?= $periode === 'tahun' ? 'selected' : '' ?>>Per Tahun (Tahunan)</option>
+                <option value="all" <?= $periode === 'all' ? 'selected' : '' ?>>Semua Waktu</option>
             </select>
+
+            <div id="groupKelasTanggal" class="<?= ! in_array($periode, ['hari', 'minggu']) ? 'd-none' : '' ?>">
+                <input type="date" name="tanggal" class="form-control form-control-sm w-auto shadow-sm" value="<?= esc($tanggal) ?>" title="Tanggal Presensi">
+            </div>
 
             <div id="groupKelasBulan" class="<?= $periode !== 'bulan' ? 'd-none' : '' ?>">
                 <select name="bulan" class="form-select form-select-sm w-auto shadow-sm">
@@ -75,11 +95,11 @@
                 </select>
             </div>
 
-            <div id="groupKelasTahun" class="<?= $periode === 'all' ? 'd-none' : '' ?>">
+            <div id="groupKelasTahun" class="<?= ! in_array($periode, ['bulan', 'semester', 'tahun']) ? 'd-none' : '' ?>">
                 <select name="tahun" class="form-select form-select-sm w-auto shadow-sm">
                     <?php 
                     $currY = (int)date('Y');
-                    for ($y = $currY; $y >= $currY - 3; $y--): 
+                    for ($y = $currY; $y >= $currY - 4; $y--): 
                     ?>
                         <option value="<?= $y ?>" <?= (int)$tahun === $y ? 'selected' : '' ?>><?= $y ?></option>
                     <?php endfor; ?>
@@ -99,11 +119,13 @@
                     <th class="text-center" style="width: 50px;">No</th>
                     <th style="width: 140px;">NISN</th>
                     <th>Nama Siswa (Klik untuk Rincian)</th>
-                    <th class="text-center" style="width: 100px;">Hadir (H)</th>
-                    <th class="text-center" style="width: 100px;">Sakit (S)</th>
-                    <th class="text-center" style="width: 100px;">Izin (I)</th>
-                    <th class="text-center" style="width: 100px;">Alpa (A)</th>
-                    <th class="text-center" style="width: 160px;">Status Disiplin</th>
+                    <th class="text-center" style="width: 90px;">Hadir (H)</th>
+                    <th class="text-center" style="width: 90px;">Sakit (S)</th>
+                    <th class="text-center" style="width: 90px;">Izin (I)</th>
+                    <th class="text-center" style="width: 90px;">Alpa (A)</th>
+                    <th class="text-center" style="width: 180px;">
+                        <?= $periode === 'hari' ? 'Status Hari Ini' : 'Status Disiplin' ?>
+                    </th>
                     <th class="text-center" style="width: 160px;">Aksi</th>
                 </tr>
             </thead>
@@ -124,6 +146,11 @@
                                     <span><?= esc($s['nama_siswa']) ?></span>
                                     <i class="bi bi-box-arrow-up-right small text-muted"></i>
                                 </a>
+                                <?php if ($periode === 'hari' && ! empty($s['keterangan'])): ?>
+                                    <div class="small text-muted mt-1">
+                                        <i class="bi bi-chat-left-text text-primary me-1"></i>Ket: <?= esc($s['keterangan']) ?>
+                                    </div>
+                                <?php endif; ?>
                             </td>
                             <td class="text-center"><span class="badge badge-h px-3 py-1 fs-6 rounded-pill"><?= $s['total_h'] ?></span></td>
                             <td class="text-center"><span class="badge badge-s px-3 py-1 fs-6 rounded-pill"><?= $s['total_s'] ?></span></td>
@@ -134,18 +161,42 @@
                                 </span>
                             </td>
                             <td class="text-center">
-                                <?php if ($s['total_a'] > 3): ?>
-                                    <span class="badge bg-danger text-white px-2 py-1">
-                                        <i class="bi bi-exclamation-triangle-fill me-1"></i> Perlu Pembinaan
-                                    </span>
-                                <?php elseif ($s['total_a'] > 0): ?>
-                                    <span class="badge bg-warning bg-opacity-10 text-warning border border-warning px-2 py-1">
-                                        Perhatian
-                                    </span>
+                                <?php if ($periode === 'hari'): ?>
+                                    <?php if ($s['total_h'] > 0): ?>
+                                        <span class="badge bg-success bg-opacity-10 text-success border border-success px-3 py-1 rounded-pill">
+                                            <i class="bi bi-check-circle-fill me-1"></i> Hadir
+                                        </span>
+                                    <?php elseif ($s['total_s'] > 0): ?>
+                                        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary px-3 py-1 rounded-pill">
+                                            <i class="bi bi-heart-pulse-fill me-1"></i> Sakit
+                                        </span>
+                                    <?php elseif ($s['total_i'] > 0): ?>
+                                        <span class="badge bg-warning bg-opacity-10 text-warning border border-warning px-3 py-1 rounded-pill">
+                                            <i class="bi bi-envelope-paper-fill me-1"></i> Izin
+                                        </span>
+                                    <?php elseif ($s['total_a'] > 0): ?>
+                                        <span class="badge bg-danger text-white px-3 py-1 rounded-pill">
+                                            <i class="bi bi-x-circle-fill me-1"></i> Alpa
+                                        </span>
+                                    <?php else: ?>
+                                        <span class="badge bg-light text-muted border px-3 py-1 rounded-pill">
+                                            <i class="bi bi-dash-circle me-1"></i> Belum Diabsen
+                                        </span>
+                                    <?php endif; ?>
                                 <?php else: ?>
-                                    <span class="badge bg-success bg-opacity-10 text-success border border-success px-2 py-1">
-                                        Baik
-                                    </span>
+                                    <?php if ($s['total_a'] > 3): ?>
+                                        <span class="badge bg-danger text-white px-2 py-1">
+                                            <i class="bi bi-exclamation-triangle-fill me-1"></i> Perlu Pembinaan
+                                        </span>
+                                    <?php elseif ($s['total_a'] > 0): ?>
+                                        <span class="badge bg-warning bg-opacity-10 text-warning border border-warning px-2 py-1">
+                                            Perhatian
+                                        </span>
+                                    <?php else: ?>
+                                        <span class="badge bg-success bg-opacity-10 text-success border border-success px-2 py-1">
+                                            Baik
+                                        </span>
+                                    <?php endif; ?>
                                 <?php endif; ?>
                             </td>
                             <td class="text-center">
@@ -164,22 +215,27 @@
 <script>
 function toggleKelasFilter() {
     const val = document.getElementById('selectKelasPeriode').value;
+    const gt = document.getElementById('groupKelasTanggal');
     const gb = document.getElementById('groupKelasBulan');
     const gs = document.getElementById('groupKelasSemester');
-    const gt = document.getElementById('groupKelasTahun');
+    const gy = document.getElementById('groupKelasTahun');
 
-    if (val === 'bulan') {
+    // Sembunyikan semua dulu
+    gt.classList.add('d-none');
+    gb.classList.add('d-none');
+    gs.classList.add('d-none');
+    gy.classList.add('d-none');
+
+    if (val === 'hari' || val === 'minggu') {
+        gt.classList.remove('d-none');
+    } else if (val === 'bulan') {
         gb.classList.remove('d-none');
-        gs.classList.add('d-none');
-        gt.classList.remove('d-none');
+        gy.classList.remove('d-none');
     } else if (val === 'semester') {
-        gb.classList.add('d-none');
         gs.classList.remove('d-none');
-        gt.classList.remove('d-none');
-    } else {
-        gb.classList.add('d-none');
-        gs.classList.add('d-none');
-        gt.classList.add('d-none');
+        gy.classList.remove('d-none');
+    } else if (val === 'tahun') {
+        gy.classList.remove('d-none');
     }
 }
 </script>

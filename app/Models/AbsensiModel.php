@@ -84,22 +84,41 @@ class AbsensiModel extends Model
     }
 
     /**
-     * Helper untuk memetakan filter periode (all, bulan, semester) ke startDate, endDate, dan label
+     * Helper untuk memetakan filter periode (all, hari, minggu, bulan, semester, tahun) ke startDate, endDate, dan label
      */
-    public function resolveDateFilter(?string $periode = null, $bulan = null, $tahun = null, ?string $semester = null): array
+    public function resolveDateFilter(?string $periode = null, $bulan = null, $tahun = null, ?string $semester = null, ?string $tanggal = null): array
     {
         $startDate = null;
         $endDate   = null;
         $tahun     = (int)($tahun ?: date('Y'));
+        $tanggal   = !empty($tanggal) ? $tanggal : date('Y-m-d');
         $label     = 'Semua Waktu (Keseluruhan)';
 
-        if ($periode === 'bulan' || (!empty($bulan) && $periode !== 'semester' && $periode !== 'all')) {
-            $bulan = (int)$bulan;
+        $namaBulan = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
+        if ($periode === 'hari') {
+            $startDate = $tanggal;
+            $endDate   = $tanggal;
+            $tTime     = strtotime($tanggal);
+            $hariList  = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+            $hariNama  = $hariList[(int)date('w', $tTime)];
+            $blnNama   = $namaBulan[(int)date('n', $tTime)];
+            $label     = "Hari {$hariNama}, " . date('j', $tTime) . " {$blnNama} " . date('Y', $tTime);
+        } elseif ($periode === 'minggu') {
+            $ts        = strtotime($tanggal);
+            $dayOfWeek = (int)date('N', $ts); // 1 = Senin, 7 = Minggu
+            $startDate = date('Y-m-d', strtotime('-' . ($dayOfWeek - 1) . ' days', $ts));
+            $endDate   = date('Y-m-d', strtotime('+' . (7 - $dayOfWeek) . ' days', $ts));
+            
+            $startTs = strtotime($startDate);
+            $endTs   = strtotime($endDate);
+            $label   = "Mingguan (" . date('d', $startTs) . " " . ($namaBulan[(int)date('n', $startTs)]) . " - " . date('d', $endTs) . " " . ($namaBulan[(int)date('n', $endTs)]) . " " . date('Y', $endTs) . ")";
+        } elseif ($periode === 'bulan' || (!empty($bulan) && $periode !== 'semester' && $periode !== 'tahun' && $periode !== 'all' && $periode !== 'hari' && $periode !== 'minggu')) {
+            $bulan     = (int)$bulan;
             $startDate = sprintf('%04d-%02d-01', $tahun, $bulan);
             $endDate   = date('Y-m-t', strtotime($startDate));
-            $namaBulan = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
             $label     = "Bulan " . ($namaBulan[$bulan] ?? '') . " " . $tahun;
-        } elseif ($periode === 'semester' || !empty($semester)) {
+        } elseif ($periode === 'semester' || (!empty($semester) && $periode !== 'tahun' && $periode !== 'all')) {
             $sem = strtolower((string)$semester) === 'genap' ? 'genap' : 'ganjil';
             if ($sem === 'genap') {
                 $startDate = sprintf('%04d-01-01', $tahun);
@@ -110,6 +129,10 @@ class AbsensiModel extends Model
                 $endDate   = sprintf('%04d-12-31', $tahun);
                 $label     = "Semester Ganjil (Juli - Des) {$tahun}";
             }
+        } elseif ($periode === 'tahun') {
+            $startDate = sprintf('%04d-01-01', $tahun);
+            $endDate   = sprintf('%04d-12-31', $tahun);
+            $label     = "Tahun {$tahun}";
         } elseif ($periode === 'all') {
             $label = 'Semua Waktu (Keseluruhan)';
         }
@@ -133,7 +156,8 @@ class AbsensiModel extends Model
             COUNT(CASE WHEN a.status = "H" THEN 1 END) as total_h,
             COUNT(CASE WHEN a.status = "S" THEN 1 END) as total_s,
             COUNT(CASE WHEN a.status = "I" THEN 1 END) as total_i,
-            COUNT(CASE WHEN a.status = "A" THEN 1 END) as total_a
+            COUNT(CASE WHEN a.status = "A" THEN 1 END) as total_a,
+            MAX(a.keterangan) as keterangan
         ');
         
         $joinCondition = 'a.siswa_id = s.id';
@@ -225,7 +249,9 @@ class AbsensiModel extends Model
             k.id as kelas_id,
             k.nama_kelas,
             k.shift,
+            k.walas_id,
             g.nama_guru as nama_walas,
+            g.no_hp as no_hp_walas,
             COUNT(DISTINCT s.id) as total_siswa,
             COUNT(CASE WHEN a.status = "H" THEN 1 END) as total_h,
             COUNT(CASE WHEN a.status = "S" THEN 1 END) as total_s,
@@ -240,7 +266,7 @@ class AbsensiModel extends Model
             $joinCondition .= ' AND a.tanggal >= ' . $db->escape($startDate) . ' AND a.tanggal <= ' . $db->escape($endDate);
         }
         $builder->join('absensi a', $joinCondition, 'left');
-        $builder->groupBy('k.id, k.nama_kelas, k.shift, g.nama_guru');
+        $builder->groupBy('k.id, k.nama_kelas, k.shift, k.walas_id, g.nama_guru, g.no_hp');
         $builder->orderBy('k.nama_kelas', 'ASC');
 
         return $builder->get()->getResultArray();
@@ -398,6 +424,74 @@ class AbsensiModel extends Model
         }
 
         return $rows;
+    }
+
+    /**
+     * Mengambil status pengisian presensi seluruh kelas pada tanggal tertentu (default hari ini).
+     * Mengetahui kelas mana saja yang sudah lengkap, sebagian, atau belum input absensi sama sekali.
+     */
+    public function getStatusInputPresensiKelas(?string $tanggal = null): array
+    {
+        $db = $this->db;
+        $tanggal = $tanggal ?: date('Y-m-d');
+
+        $sql = "
+            SELECT 
+                k.id as kelas_id,
+                k.nama_kelas,
+                k.shift,
+                k.walas_id,
+                g.nama_guru as nama_walas,
+                g.no_hp as no_hp_walas,
+                COUNT(DISTINCT CASE WHEN s.status = 'Aktif' THEN s.id END) as total_siswa_aktif,
+                COUNT(DISTINCT a.siswa_id) as total_diabsen,
+                COUNT(CASE WHEN a.status = 'H' THEN 1 END) as total_h,
+                COUNT(CASE WHEN a.status = 'S' THEN 1 END) as total_s,
+                COUNT(CASE WHEN a.status = 'I' THEN 1 END) as total_i,
+                COUNT(CASE WHEN a.status = 'A' THEN 1 END) as total_a,
+                MAX(a.updated_at) as waktu_update,
+                pkh.foto_kelas,
+                pkh.share_token
+            FROM kelas k
+            LEFT JOIN guru g ON g.id = k.walas_id
+            LEFT JOIN siswa s ON s.kelas_id = k.id AND s.status = 'Aktif'
+            LEFT JOIN absensi a ON a.siswa_id = s.id AND a.tanggal = " . $db->escape($tanggal) . "
+            LEFT JOIN presensi_kelas_harian pkh ON pkh.kelas_id = k.id AND pkh.tanggal = " . $db->escape($tanggal) . "
+            GROUP BY k.id, k.nama_kelas, k.shift, k.walas_id, g.nama_guru, g.no_hp, pkh.foto_kelas, pkh.share_token
+            ORDER BY k.nama_kelas ASC
+        ";
+
+        $rows = $db->query($sql)->getResultArray();
+
+        $result = [];
+        foreach ($rows as $r) {
+            $totalSiswa   = (int)$r['total_siswa_aktif'];
+            $totalDiabsen = (int)$r['total_diabsen'];
+
+            if ($totalDiabsen === 0) {
+                $statusInput = 'belum';
+                $statusLabel = 'Belum Input';
+                $statusBadge = 'danger';
+            } elseif ($totalDiabsen < $totalSiswa) {
+                $statusInput = 'sebagian';
+                $statusLabel = 'Sebagian (' . $totalDiabsen . '/' . $totalSiswa . ')';
+                $statusBadge = 'warning';
+            } else {
+                $statusInput = 'lengkap';
+                $statusLabel = 'Sudah Lengkap';
+                $statusBadge = 'success';
+            }
+
+            $r['total_siswa_aktif'] = $totalSiswa;
+            $r['total_diabsen']     = $totalDiabsen;
+            $r['status_input']      = $statusInput;
+            $r['status_label']      = $statusLabel;
+            $r['status_badge']      = $statusBadge;
+
+            $result[] = $r;
+        }
+
+        return $result;
     }
 }
 

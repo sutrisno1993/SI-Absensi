@@ -60,15 +60,21 @@ class AdminController extends BaseController
         $riwayatPembinaan = $this->pembinaanModel->getRiwayatPembinaan();
         $topSiswaAlpa = $this->absensiModel->getTopSiswaAlpa(10);
 
+        // Status Pengisian Presensi Seluruh Kelas Hari Ini
+        $tanggalHariIni = date('Y-m-d');
+        $statusPresensiKelasHariIni = $this->absensiModel->getStatusInputPresensiKelas($tanggalHariIni);
+
         return view('admin/dashboard', [
-            'title'            => 'Dashboard Administrator',
-            'totalGuru'        => $totalGuru,
-            'totalKelas'       => $totalKelas,
-            'totalSiswa'       => $totalSiswa,
-            'totalUser'        => $totalUser,
-            'rekapGlobal'      => $rekapGlobal,
-            'riwayatPembinaan' => $riwayatPembinaan,
-            'topSiswaAlpa'     => $topSiswaAlpa,
+            'title'                      => 'Dashboard Administrator',
+            'totalGuru'                  => $totalGuru,
+            'totalKelas'                 => $totalKelas,
+            'totalSiswa'                 => $totalSiswa,
+            'totalUser'                  => $totalUser,
+            'rekapGlobal'                => $rekapGlobal,
+            'riwayatPembinaan'           => $riwayatPembinaan,
+            'topSiswaAlpa'               => $topSiswaAlpa,
+            'statusPresensiKelasHariIni' => $statusPresensiKelasHariIni,
+            'tanggalHariIni'             => $tanggalHariIni,
         ]);
     }
 
@@ -715,12 +721,13 @@ class AdminController extends BaseController
      */
     public function rekapLaporan()
     {
-        $periode  = $this->request->getGet('periode') ?: 'all'; // all, bulan, semester
+        $periode  = $this->request->getGet('periode') ?: 'all'; // all, hari, minggu, bulan, semester, tahun
         $bulan    = (int)($this->request->getGet('bulan') ?: date('n'));
         $tahun    = (int)($this->request->getGet('tahun') ?: date('Y'));
         $semester = $this->request->getGet('semester') ?: (date('n') >= 7 ? 'ganjil' : 'genap');
+        $tanggal  = $this->request->getGet('tanggal') ?: date('Y-m-d');
 
-        [$startDate, $endDate, $labelPeriode] = $this->absensiModel->resolveDateFilter($periode, $bulan, $tahun, $semester);
+        [$startDate, $endDate, $labelPeriode] = $this->absensiModel->resolveDateFilter($periode, $bulan, $tahun, $semester, $tanggal);
         $rekapGlobal = $this->absensiModel->getRekapGlobal($startDate, $endDate);
 
         return view('admin/rekap_laporan', [
@@ -730,6 +737,7 @@ class AdminController extends BaseController
             'bulan'        => $bulan,
             'tahun'        => $tahun,
             'semester'     => $semester,
+            'tanggal'      => $tanggal,
             'labelPeriode' => $labelPeriode,
         ]);
     }
@@ -747,22 +755,26 @@ class AdminController extends BaseController
             return redirect()->to('/admin/laporan')->with('error', 'Kelas tidak ditemukan.');
         }
 
-        $periode  = $this->request->getGet('periode') ?: ($this->request->getGet('semester') ? 'semester' : ($this->request->getGet('bulan') ? 'bulan' : 'all'));
+        $periode  = $this->request->getGet('periode') ?: 'all';
         $bulan    = (int)($this->request->getGet('bulan') ?: date('n'));
         $tahun    = (int)($this->request->getGet('tahun') ?: date('Y'));
         $semester = $this->request->getGet('semester') ?: (date('n') >= 7 ? 'ganjil' : 'genap');
+        $tanggal  = $this->request->getGet('tanggal') ?: date('Y-m-d');
 
-        [$startDate, $endDate, $labelPeriode] = $this->absensiModel->resolveDateFilter($periode, $bulan, $tahun, $semester);
+        [$startDate, $endDate, $labelPeriode] = $this->absensiModel->resolveDateFilter($periode, $bulan, $tahun, $semester, $tanggal);
         $rekapSiswa = $this->absensiModel->getRekapKelas((int)$kelasId, $startDate, $endDate);
+        $allKelas   = $this->kelasModel->orderBy('nama_kelas', 'ASC')->findAll();
 
         return view('admin/laporan_kelas', [
             'title'        => 'Laporan Presensi Kelas ' . $kelas['nama_kelas'],
             'kelas'        => $kelas,
+            'allKelas'     => $allKelas,
             'rekapSiswa'   => $rekapSiswa,
             'periode'      => $periode,
             'bulan'        => $bulan,
             'tahun'        => $tahun,
             'semester'     => $semester,
+            'tanggal'      => $tanggal,
             'labelPeriode' => $labelPeriode,
         ]);
     }
@@ -909,31 +921,13 @@ class AdminController extends BaseController
     // ==========================================
     public function monitoring()
     {
-        $periode  = $this->request->getGet('periode') ?: 'all'; // all, bulan, semester
+        $periode  = $this->request->getGet('periode') ?: 'all'; // all, hari, minggu, bulan, semester, tahun
         $bulan    = (int)($this->request->getGet('bulan') ?: date('n'));
         $tahun    = (int)($this->request->getGet('tahun') ?: date('Y'));
         $semester = $this->request->getGet('semester') ?: (date('n') >= 7 ? 'ganjil' : 'genap');
+        $tanggal  = $this->request->getGet('tanggal') ?: date('Y-m-d');
 
-        $startDate = null;
-        $endDate   = null;
-        $labelPeriode = 'Semua Waktu (Keseluruhan)';
-
-        if ($periode === 'bulan') {
-            $startDate = sprintf('%04d-%02d-01', $tahun, $bulan);
-            $endDate   = date('Y-m-t', strtotime($startDate));
-            $namaBulan = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-            $labelPeriode = "Bulan " . ($namaBulan[$bulan] ?? '') . " " . $tahun;
-        } elseif ($periode === 'semester') {
-            if ($semester === 'ganjil') {
-                $startDate = sprintf('%04d-07-01', $tahun);
-                $endDate   = sprintf('%04d-12-31', $tahun);
-                $labelPeriode = "Semester Ganjil {$tahun}";
-            } else {
-                $startDate = sprintf('%04d-01-01', $tahun);
-                $endDate   = sprintf('%04d-06-30', $tahun);
-                $labelPeriode = "Semester Genap {$tahun}";
-            }
-        }
+        [$startDate, $endDate, $labelPeriode] = $this->absensiModel->resolveDateFilter($periode, $bulan, $tahun, $semester, $tanggal);
 
         // Statistik Guru
         $statGuru       = $this->absensiGuruModel->getStatistikKehadiranRange($startDate, $endDate);
@@ -949,6 +943,7 @@ class AdminController extends BaseController
             'bulan'         => $bulan,
             'tahun'         => $tahun,
             'semester'      => $semester,
+            'tanggal'       => $tanggal,
             'labelPeriode'  => $labelPeriode,
             'statGuru'      => $statGuru,
             'performaGuru'  => $performaGuru,
@@ -970,8 +965,9 @@ class AdminController extends BaseController
         $bulan    = (int)($this->request->getGet('bulan') ?: date('n'));
         $tahun    = (int)($this->request->getGet('tahun') ?: date('Y'));
         $semester = $this->request->getGet('semester') ?: (date('n') >= 7 ? 'ganjil' : 'genap');
+        $tanggal  = $this->request->getGet('tanggal') ?: date('Y-m-d');
 
-        [$startDate, $endDate, $labelPeriode] = $this->absensiModel->resolveDateFilter($periode, $bulan, $tahun, $semester);
+        [$startDate, $endDate, $labelPeriode] = $this->absensiModel->resolveDateFilter($periode, $bulan, $tahun, $semester, $tanggal);
         $rekapGlobal = $this->absensiModel->getRekapGlobal($startDate, $endDate);
         $this->exportService->exportGlobalPresensi($rekapGlobal, $labelPeriode);
     }
@@ -989,12 +985,13 @@ class AdminController extends BaseController
             return redirect()->back()->with('error', 'Kelas tidak ditemukan.');
         }
 
-        $periode  = $this->request->getGet('periode') ?: ($this->request->getGet('semester') ? 'semester' : ($this->request->getGet('bulan') ? 'bulan' : 'all'));
+        $periode  = $this->request->getGet('periode') ?: 'all';
         $bulan    = (int)($this->request->getGet('bulan') ?: date('n'));
         $tahun    = (int)($this->request->getGet('tahun') ?: date('Y'));
         $semester = $this->request->getGet('semester') ?: (date('n') >= 7 ? 'ganjil' : 'genap');
+        $tanggal  = $this->request->getGet('tanggal') ?: date('Y-m-d');
 
-        [$startDate, $endDate, $labelPeriode] = $this->absensiModel->resolveDateFilter($periode, $bulan, $tahun, $semester);
+        [$startDate, $endDate, $labelPeriode] = $this->absensiModel->resolveDateFilter($periode, $bulan, $tahun, $semester, $tanggal);
         $rekapSiswa = $this->absensiModel->getRekapKelas((int)$kelasId, $startDate, $endDate);
         $this->exportService->exportKelasPresensi($kelas, $rekapSiswa, $labelPeriode);
     }
@@ -1042,27 +1039,9 @@ class AdminController extends BaseController
         $bulan    = (int)($this->request->getGet('bulan') ?: date('n'));
         $tahun    = (int)($this->request->getGet('tahun') ?: date('Y'));
         $semester = $this->request->getGet('semester') ?: (date('n') >= 7 ? 'ganjil' : 'genap');
+        $tanggal  = $this->request->getGet('tanggal') ?: date('Y-m-d');
 
-        $startDate = null;
-        $endDate   = null;
-        $labelPeriode = 'Semua Waktu (Keseluruhan)';
-
-        if ($periode === 'bulan') {
-            $startDate = sprintf('%04d-%02d-01', $tahun, $bulan);
-            $endDate   = date('Y-m-t', strtotime($startDate));
-            $namaBulan = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-            $labelPeriode = "Bulan " . ($namaBulan[$bulan] ?? '') . " " . $tahun;
-        } elseif ($periode === 'semester') {
-            if ($semester === 'ganjil') {
-                $startDate = sprintf('%04d-07-01', $tahun);
-                $endDate   = sprintf('%04d-12-31', $tahun);
-                $labelPeriode = "Semester Ganjil {$tahun}";
-            } else {
-                $startDate = sprintf('%04d-01-01', $tahun);
-                $endDate   = sprintf('%04d-06-30', $tahun);
-                $labelPeriode = "Semester Genap {$tahun}";
-            }
-        }
+        [$startDate, $endDate, $labelPeriode] = $this->absensiModel->resolveDateFilter($periode, $bulan, $tahun, $semester, $tanggal);
 
         $performaGuru = $this->absensiGuruModel->getPerformaPerGuru($startDate, $endDate);
         $this->exportService->exportPresensiGuru($performaGuru, $labelPeriode);
@@ -1077,8 +1056,9 @@ class AdminController extends BaseController
         $bulan    = (int)($this->request->getGet('bulan') ?: date('n'));
         $tahun    = (int)($this->request->getGet('tahun') ?: date('Y'));
         $semester = $this->request->getGet('semester') ?: (date('n') >= 7 ? 'ganjil' : 'genap');
+        $tanggal  = $this->request->getGet('tanggal') ?: date('Y-m-d');
 
-        [$startDate, $endDate, $labelPeriode] = $this->absensiModel->resolveDateFilter($periode, $bulan, $tahun, $semester);
+        [$startDate, $endDate, $labelPeriode] = $this->absensiModel->resolveDateFilter($periode, $bulan, $tahun, $semester, $tanggal);
 
         $statSiswa     = $this->absensiModel->getStatistikKehadiranSiswaRange($startDate, $endDate);
         $performaKelas = $this->absensiModel->getPerformaPerKelas($startDate, $endDate);

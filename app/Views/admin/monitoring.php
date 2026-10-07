@@ -25,10 +25,10 @@
         <p class="text-muted small mb-0">Analisis metrik persentase kehadiran guru dan siswa berdasarkan periode waktu.</p>
     </div>
     <div class="col-12 col-md-4 text-md-end mt-3 mt-md-0 no-print d-flex flex-wrap justify-content-md-end gap-2">
-        <a href="<?= site_url('admin/monitoring/export-guru-excel?' . http_build_query(['periode' => $periode, 'bulan' => $bulan, 'tahun' => $tahun, 'semester' => $semester])) ?>" class="btn btn-outline-success rounded-3 px-3 shadow-sm" title="Unduh Rekap Presensi Guru ke Excel">
+        <a href="<?= site_url('admin/monitoring/export-guru-excel?' . http_build_query(['periode' => $periode, 'bulan' => $bulan, 'tahun' => $tahun, 'semester' => $semester, 'tanggal' => $tanggal])) ?>" class="btn btn-outline-success rounded-3 px-3 shadow-sm" title="Unduh Rekap Presensi Guru ke Excel">
             <i class="bi bi-file-earmark-excel-fill me-1"></i> Excel Guru
         </a>
-        <a href="<?= site_url('admin/monitoring/export-siswa-excel?' . http_build_query(['periode' => $periode, 'bulan' => $bulan, 'tahun' => $tahun, 'semester' => $semester])) ?>" class="btn btn-outline-primary rounded-3 px-3 shadow-sm" title="Unduh Monitoring Presensi Siswa ke Excel">
+        <a href="<?= site_url('admin/monitoring/export-siswa-excel?' . http_build_query(['periode' => $periode, 'bulan' => $bulan, 'tahun' => $tahun, 'semester' => $semester, 'tanggal' => $tanggal])) ?>" class="btn btn-outline-primary rounded-3 px-3 shadow-sm" title="Unduh Monitoring Presensi Siswa ke Excel">
             <i class="bi bi-file-earmark-excel-fill me-1"></i> Excel Siswa
         </a>
         <button type="button" class="btn btn-outline-secondary btn-print rounded-3 px-3 shadow-sm" onclick="window.print()">
@@ -37,7 +37,7 @@
     </div>
 </div>
 
-<!-- Filter Periode (Keseluruhan, Per Bulan, Per Semester) -->
+<!-- Filter Periode (Hari, Minggu, Bulan, Semester, Tahun, Keseluruhan) -->
 <div class="card card-custom border-0 shadow-sm mb-4 filter-card no-print">
     <div class="card-body p-3">
         <form action="<?= site_url('admin/monitoring') ?>" method="GET" id="formFilterMonitoring">
@@ -45,10 +45,21 @@
                 <div class="col-12 col-md-3">
                     <label class="form-label small fw-semibold text-secondary mb-1">Pilih Mode Periode</label>
                     <select name="periode" class="form-select" id="selectPeriode" onchange="toggleFilterInputs()">
-                        <option value="all" <?= $periode === 'all' ? 'selected' : '' ?>>Semua Waktu (Keseluruhan)</option>
+                        <option value="hari" <?= $periode === 'hari' ? 'selected' : '' ?>>Per Hari (Harian)</option>
+                        <option value="minggu" <?= $periode === 'minggu' ? 'selected' : '' ?>>Per Minggu (Mingguan)</option>
                         <option value="bulan" <?= $periode === 'bulan' ? 'selected' : '' ?>>Per Bulan</option>
                         <option value="semester" <?= $periode === 'semester' ? 'selected' : '' ?>>Per Semester</option>
+                        <option value="tahun" <?= $periode === 'tahun' ? 'selected' : '' ?>>Per Tahun (Tahunan)</option>
+                        <option value="all" <?= $periode === 'all' ? 'selected' : '' ?>>Semua Waktu (Keseluruhan)</option>
                     </select>
+                </div>
+
+                <!-- Input Tanggal (Aktif jika periode = hari atau minggu) -->
+                <div class="col-12 col-md-3 <?= ! in_array($periode, ['hari', 'minggu']) ? 'd-none' : '' ?>" id="groupTanggal">
+                    <label class="form-label small fw-semibold text-secondary mb-1" id="labelTanggal">
+                        <?= $periode === 'minggu' ? 'Pilih Tanggal Acuan Minggu' : 'Pilih Tanggal' ?>
+                    </label>
+                    <input type="date" name="tanggal" class="form-control" value="<?= esc($tanggal) ?>" id="inputTanggal">
                 </div>
 
                 <!-- Input Bulan (Aktif jika periode = bulan) -->
@@ -63,7 +74,7 @@
                         ];
                         foreach ($namaBulan as $num => $nb): 
                         ?>
-                            <option value="<?= $num ?>" <?= $bulan === $num ? 'selected' : '' ?>><?= $nb ?></option>
+                            <option value="<?= $num ?>" <?= (int)$bulan === $num ? 'selected' : '' ?>><?= $nb ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
@@ -77,15 +88,15 @@
                     </select>
                 </div>
 
-                <!-- Input Tahun -->
-                <div class="col-6 col-md-2 <?= $periode === 'all' ? 'd-none' : '' ?>" id="groupTahun">
+                <!-- Input Tahun (Aktif jika periode = bulan, semester, atau tahun) -->
+                <div class="col-6 col-md-2 <?= ! in_array($periode, ['bulan', 'semester', 'tahun']) ? 'd-none' : '' ?>" id="groupTahun">
                     <label class="form-label small fw-semibold text-secondary mb-1">Tahun</label>
                     <select name="tahun" class="form-select">
                         <?php 
                         $currYear = (int)date('Y');
-                        for ($y = $currYear; $y >= $currYear - 3; $y--): 
+                        for ($y = $currYear; $y >= $currYear - 4; $y--): 
                         ?>
-                            <option value="<?= $y ?>" <?= $tahun === $y ? 'selected' : '' ?>><?= $y ?></option>
+                            <option value="<?= $y ?>" <?= (int)$tahun === $y ? 'selected' : '' ?>><?= $y ?></option>
                         <?php endfor; ?>
                     </select>
                 </div>
@@ -401,19 +412,30 @@
 <script>
     function toggleFilterInputs() {
         var mode = document.getElementById('selectPeriode').value;
+        var groupTanggal = document.getElementById('groupTanggal');
+        var labelTanggal = document.getElementById('labelTanggal');
         var groupBulan = document.getElementById('groupBulan');
         var groupSemester = document.getElementById('groupSemester');
         var groupTahun = document.getElementById('groupTahun');
 
+        groupTanggal.classList.add('d-none');
         groupBulan.classList.add('d-none');
         groupSemester.classList.add('d-none');
         groupTahun.classList.add('d-none');
 
-        if (mode === 'bulan') {
+        if (mode === 'hari') {
+            groupTanggal.classList.remove('d-none');
+            labelTanggal.innerText = 'Pilih Tanggal';
+        } else if (mode === 'minggu') {
+            groupTanggal.classList.remove('d-none');
+            labelTanggal.innerText = 'Pilih Tanggal Acuan Minggu';
+        } else if (mode === 'bulan') {
             groupBulan.classList.remove('d-none');
             groupTahun.classList.remove('d-none');
         } else if (mode === 'semester') {
             groupSemester.classList.remove('d-none');
+            groupTahun.classList.remove('d-none');
+        } else if (mode === 'tahun') {
             groupTahun.classList.remove('d-none');
         }
     }

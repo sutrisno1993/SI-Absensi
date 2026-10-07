@@ -140,7 +140,7 @@ class ExportService
             '11' => 'November', '12' => 'Desember'
         ];
 
-        if (is_string($labelPeriodeOrBulan) && (strpos($labelPeriodeOrBulan, 'Semester') !== false || strpos($labelPeriodeOrBulan, 'Bulan') !== false || strpos($labelPeriodeOrBulan, 'Semua') !== false)) {
+        if (is_string($labelPeriodeOrBulan) && !empty($labelPeriodeOrBulan) && !is_numeric($labelPeriodeOrBulan)) {
             $periodeStr = $labelPeriodeOrBulan;
         } elseif ($labelPeriodeOrBulan && isset($namaBulan[$labelPeriodeOrBulan])) {
             $periodeStr = 'Bulan ' . $namaBulan[$labelPeriodeOrBulan] . ' ' . ($tahun ?: date('Y'));
