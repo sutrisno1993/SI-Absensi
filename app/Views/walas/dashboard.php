@@ -85,18 +85,23 @@
             <div class="row g-2">
                 <?php foreach ($tanggalKelewat as $tk): ?>
                     <div class="col-12 col-md-6 col-lg-4">
-                        <div class="card border-0 shadow-sm p-3 rounded-3 bg-white d-flex flex-row align-items-center justify-content-between">
-                            <div>
-                                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 mb-1">
-                                    <i class="bi bi-calendar-x me-1"></i> <?= $tk['hari'] ?>
-                                </span>
-                                <div class="fw-bold text-dark"><?= esc($tk['formatted']) ?></div>
-                                <small class="text-muted"><?= $tk['is_today'] ? 'Hari Ini (Belum Diinput)' : 'Hari Lampau Terlewat' ?></small>
+                        <div class="card border-0 shadow-sm p-3 rounded-3 bg-white h-100 d-flex flex-column justify-content-between">
+                            <div class="d-flex align-items-start justify-content-between mb-2">
+                                <div>
+                                    <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 mb-1">
+                                        <i class="bi bi-calendar-x me-1"></i> <?= $tk['hari'] ?>
+                                    </span>
+                                    <div class="fw-bold text-dark fs-6"><?= esc($tk['formatted']) ?></div>
+                                    <small class="text-muted"><?= $tk['is_today'] ? 'Hari Ini (Belum Diinput)' : 'Hari Belajar Terlewat' ?></small>
+                                </div>
                             </div>
-                            <div>
-                                <a href="<?= site_url('walas/absen?tanggal=' . $tk['tanggal']) ?>" class="btn btn-sm btn-primary-custom px-3 rounded-pill fw-semibold shadow-sm">
+                            <div class="d-flex gap-2 mt-2 pt-2 border-top">
+                                <a href="<?= site_url('walas/absen?tanggal=' . $tk['tanggal']) ?>" class="btn btn-sm btn-primary-custom flex-grow-1 rounded-pill fw-semibold shadow-sm text-center">
                                     <i class="bi bi-pencil-square me-1"></i> Isi Absen
                                 </a>
+                                <button type="button" class="btn btn-sm btn-outline-warning text-dark border-warning rounded-pill px-3 fw-semibold text-nowrap" onclick="bukaModalTandaiLibur('<?= $tk['tanggal'] ?>', '<?= esc($tk['formatted']) ?>')">
+                                    <i class="bi bi-calendar-event me-1"></i> Libur / Acara
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -289,6 +294,78 @@
         </div>
     </div>
 </div>
+
+<!-- Modal Walas Tandai Libur / Acara Khusus -->
+<div class="modal fade" id="modalTandaiLibur" tabindex="-1" aria-labelledby="modalTandaiLiburLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header bg-warning bg-opacity-25 border-bottom border-warning py-3">
+                <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2" id="modalTandaiLiburLabel">
+                    <i class="bi bi-calendar2-check-fill text-warning"></i>
+                    Tandai Hari Libur / Acara Non-KBM
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="<?= site_url('walas/tandai-libur') ?>" method="POST">
+                <?= csrf_field() ?>
+                <input type="hidden" name="tanggal" id="libur_tanggal" value="">
+                
+                <div class="modal-body p-4">
+                    <div class="alert alert-warning bg-opacity-10 border-0 rounded-3 mb-3 d-flex align-items-start gap-2">
+                        <i class="bi bi-info-circle-fill text-warning fs-5 mt-1"></i>
+                        <div class="small text-muted">
+                            Fitur ini digunakan jika ada kegiatan/libur (misal: <strong>Maulid Nabi, Class Meeting, HUT Sekolah, Hari Libur Bersama</strong>) yang belum tercatat oleh Admin di Kalender Pendidikan. Presensi pada tanggal ini akan dinonaktifkan (bebas absen / auto null) dan notifikasi kelewat akan langsung hilang.
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-dark small">Tanggal Terpilih</label>
+                        <input type="text" class="form-control bg-light fw-bold text-primary" id="libur_tanggal_formatted" readonly>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="nama_agenda" class="form-label fw-bold text-dark small">Nama Agenda / Keterangan Libur <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="nama_agenda" name="nama_agenda" placeholder="Contoh: Libur Acara Maulid Nabi Muhammad SAW" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-dark small">Kategori Kegiatan <span class="text-danger">*</span></label>
+                        <div class="d-flex gap-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="tipe" id="tipe_libur" value="libur" checked>
+                                <label class="form-check-label small fw-semibold" for="tipe_libur">
+                                    <i class="bi bi-calendar-x text-danger me-1"></i> Hari Libur / Bebas KBM
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="tipe" id="tipe_acara" value="acara">
+                                <label class="form-check-label small fw-semibold" for="tipe_acara">
+                                    <i class="bi bi-trophy text-primary me-1"></i> Acara / Kegiatan Sekolah
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-dark small">Cakupan Keterangan</label>
+                        <select class="form-select" name="cakupan">
+                            <option value="kelas" selected>Hanya Berlaku Untuk Kelas Ini (<?= esc($kelas['nama_kelas'] ?? 'Kelas Saya') ?>)</option>
+                            <option value="tingkat">Berlaku Untuk Seluruh Kelas Se-Tingkat</option>
+                        </select>
+                        <div class="form-text small">Pilih "Hanya Berlaku Untuk Kelas Ini" agar tidak memengaruhi kelas lain, atau se-tingkat jika seluruh angkatan memiliki kegiatan serupa.</div>
+                    </div>
+                </div>
+
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-warning text-dark fw-bold rounded-pill px-4 shadow-sm">
+                        <i class="bi bi-check2-circle me-1"></i> Simpan & Bebaskan Absen
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 <?= $this->endSection() ?>
 
 <?= $this->section('scripts') ?>
@@ -299,6 +376,14 @@
             selectSiswa.value = siswaId;
         }
         var modal = new bootstrap.Modal(document.getElementById('modalBinaSiswa'));
+        modal.show();
+    }
+
+    function bukaModalTandaiLibur(tanggal, formatted) {
+        document.getElementById('libur_tanggal').value = tanggal;
+        document.getElementById('libur_tanggal_formatted').value = formatted;
+        document.getElementById('nama_agenda').value = '';
+        var modal = new bootstrap.Modal(document.getElementById('modalTandaiLibur'));
         modal.show();
     }
 </script>

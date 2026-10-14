@@ -93,12 +93,19 @@ class WalasController extends BaseController
         $daftarSiswa = $this->absensiModel->getAbsensiByDateAndKelas($tanggal, $kelasId);
         $isKelas2    = $this->absensiModel->isKelas2($kelas['nama_kelas']);
 
+        $kalenderModel    = new \App\Models\KalenderPendidikanModel();
+        $tingkat          = $this->absensiModel->getTingkatKelas($kelas['nama_kelas']);
+        $agendaBebasAbsen = $kalenderModel->isHariBebasAbsen($tanggal, $tingkat, $kelasId);
+        $isSunday         = ((int)date('w', strtotime($tanggal)) === 0);
+
         return view('walas/absen_harian', [
-            'title'       => 'Input Presensi Kelas ' . $kelas['nama_kelas'],
-            'kelas'       => $kelas,
-            'tanggal'     => $tanggal,
-            'daftarSiswa' => $daftarSiswa,
-            'isKelas2'    => $isKelas2,
+            'title'            => 'Input Presensi Kelas ' . $kelas['nama_kelas'],
+            'kelas'            => $kelas,
+            'tanggal'          => $tanggal,
+            'daftarSiswa'      => $daftarSiswa,
+            'isKelas2'         => $isKelas2,
+            'agendaBebasAbsen' => $agendaBebasAbsen,
+            'isSunday'         => $isSunday,
         ]);
     }
 
@@ -499,5 +506,88 @@ class WalasController extends BaseController
         }
 
         return redirect()->back()->with('success', "Seluruh password ($count siswa) kelas {$kelas['nama_kelas']} berhasil direset ke nomor NISN masing-masing.");
+    }
+
+    /**
+     * Tandai hari tertentu sebagai Hari Libur / Acara Khusus oleh Wali Kelas
+     * (Menghilangkan notifikasi kelewat dan mencatat alasan resmi libur/acara)
+     */
+    public function tandaiLiburAcara()
+    {
+        $walasId = (int)$this->session->get('ref_id');
+        $kelas   = $this->kelasModel->getKelasByWalas($walasId);
+
+        if (! $kelas) {
+            return redirect()->to('/walas')->with('error', 'Anda tidak memiliki kelas ampu.');
+        }
+
+        $tanggal    = $this->request->getPost('tanggal');
+        $namaAgenda = trim($this->request->getPost('nama_agenda') ?? '');
+        $tipe       = $this->request->getPost('tipe') ?: 'libur';
+        $cakupan    = $this->request->getPost('cakupan') ?: 'kelas';
+
+        if (empty($tanggal) || empty($namaAgenda)) {
+            return redirect()->back()->with('error', 'Tanggal dan nama agenda/kegiatan wajib diisi.');
+        }
+
+        $kelasId = (int)$kelas['id'];
+        $tingkat = $this->absensiModel->getTingkatKelas($kelas['nama_kelas']);
+
+        $targetTingkat = 'semua';
+        $targetKelasId = null;
+
+        if ($cakupan === 'kelas') {
+            $targetKelasId = $kelasId;
+        } elseif ($cakupan === 'tingkat') {
+            $targetTingkat = $tingkat;
+        }
+
+        $walasName = $this->session->get('nama_lengkap') ?: 'Wali Kelas ' . $kelas['nama_kelas'];
+
+        // 1. Simpan ke kalender_pendidikan
+        $kalenderModel = new \App\Models\KalenderPendidikanModel();
+        $kalenderModel->insert([
+            'nama_agenda'     => $namaAgenda,
+            'tanggal_mulai'   => $tanggal,
+            'tanggal_selesai' => $tanggal,
+            'tipe'            => $tipe,
+            'keterangan_kbm'  => 'bebas_absen',
+            'target_tingkat'  => $targetTingkat,
+            'target_kelas_id' => $targetKelasId,
+            'keterangan'      => 'Ditandai oleh ' . $walasName . ' (' . $kelas['nama_kelas'] . ')',
+        ]);
+
+        // 2. Simpan catatan di sesi presensi_kelas_harian
+        $presensiKelasModel = new \App\Models\PresensiKelasHarianModel();
+        $sesi = $presensiKelasModel->getOrCreateForToday($kelasId, $tanggal);
+        $presensiKelasModel->update($sesi['id'], [
+            'catatan' => ($tipe === 'libur' ? 'Libur: ' : 'Acara: ') . $namaAgenda,
+        ]);
+
+        return redirect()->back()->with('success', "Tanggal " . date('d F Y', strtotime($tanggal)) . " berhasil ditandai sebagai: {$namaAgenda}. Presensi dinonaktifkan (bebas absen) dan notifikasi terlewat telah diselesaikan.");
+    }
+
+    /**
+     * Batalkan penandaan libur/acara khusus yang dibuat oleh wali kelas
+     */
+    public function batalkanTandaiLibur()
+    {
+        $walasId = (int)$this->session->get('ref_id');
+        $kelas   = $this->kelasModel->getKelasByWalas($walasId);
+
+        if (! $kelas) {
+            return redirect()->to('/walas')->with('error', 'Anda tidak memiliki kelas ampu.');
+        }
+
+        $agendaId = (int)$this->request->getPost('agenda_id');
+        $kalenderModel = new \App\Models\KalenderPendidikanModel();
+        $agenda = $kalenderModel->find($agendaId);
+
+        if ($agenda && ((int)$agenda['target_kelas_id'] === (int)$kelas['id'] || $agenda['target_tingkat'] === $this->absensiModel->getTingkatKelas($kelas['nama_kelas']))) {
+            $kalenderModel->delete($agendaId);
+            return redirect()->back()->with('success', "Penandaan agenda '{$agenda['nama_agenda']}' berhasil dibatalkan.");
+        }
+
+        return redirect()->back()->with('error', 'Agenda libur tidak dapat dibatalkan atau bukan dibuat khusus untuk kelas/tingkat Anda.');
     }
 }

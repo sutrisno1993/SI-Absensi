@@ -61,19 +61,26 @@ class PjKelasController extends BaseController
             elseif ($st === 'P') $countP++;
         }
 
+        $kalenderModel    = new \App\Models\KalenderPendidikanModel();
+        $tingkat          = $this->absensiModel->getTingkatKelas($kelas['nama_kelas']);
+        $agendaBebasAbsen = $kalenderModel->isHariBebasAbsen($tanggal, $tingkat, $kelasId);
+        $isSunday         = ((int)date('w', strtotime($tanggal)) === 0);
+
         return view('pj/absen_harian', [
-            'title'       => 'Input Presensi Harian - ' . $kelas['nama_kelas'],
-            'kelas'       => $kelas,
-            'walas'       => $walas,
-            'tanggal'     => $tanggal,
-            'daftarSiswa' => $daftarSiswa,
-            'sesiKelas'   => $sesiKelas,
-            'countH'      => $countH,
-            'countS'      => $countS,
-            'countI'      => $countI,
-            'countA'      => $countA,
-            'countP'      => $countP,
-            'isKelas2'    => $isKelas2,
+            'title'            => 'Input Presensi Harian - ' . $kelas['nama_kelas'],
+            'kelas'            => $kelas,
+            'walas'            => $walas,
+            'tanggal'          => $tanggal,
+            'daftarSiswa'      => $daftarSiswa,
+            'sesiKelas'        => $sesiKelas,
+            'countH'           => $countH,
+            'countS'           => $countS,
+            'countI'           => $countI,
+            'countA'           => $countA,
+            'countP'           => $countP,
+            'isKelas2'         => $isKelas2,
+            'agendaBebasAbsen' => $agendaBebasAbsen,
+            'isSunday'         => $isSunday,
         ]);
     }
 

@@ -108,6 +108,8 @@ $routes->group('walas', ['filter' => ['auth', 'role:walas', 'force_change_pwd']]
     $routes->get('rekap/export-excel', 'WalasController::exportRekapExcel');
     $routes->get('export-rekap-excel', 'WalasController::exportRekapExcel');
     $routes->post('pembinaan/simpan', 'WalasController::simpanPembinaan');
+    $routes->post('tandai-libur', 'WalasController::tandaiLiburAcara');
+    $routes->post('batalkan-libur', 'WalasController::batalkanTandaiLibur');
     
     // Manajemen Akun Khusus Perwakilan Kelas
     $routes->get('akun-siswa', 'WalasController::akunSiswa');

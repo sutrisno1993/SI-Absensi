@@ -29,6 +29,41 @@
     </div>
 </div>
 
+<?php if ($isSunday): ?>
+    <div class="alert alert-info border-0 shadow-sm rounded-3 d-flex align-items-center gap-2 mb-4" role="alert">
+        <i class="bi bi-info-circle-fill fs-4 text-info"></i>
+        <div>
+            <strong>Hari Minggu (Libur Akhir Pekan):</strong> Tanggal ini adalah hari Minggu sehingga kegiatan KBM dan presensi libur otomatis.
+        </div>
+    </div>
+<?php endif; ?>
+
+<?php if (!empty($agendaBebasAbsen)): ?>
+    <div class="alert alert-success border-0 shadow-sm rounded-3 d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4" role="alert">
+        <div class="d-flex align-items-center gap-3">
+            <i class="bi bi-calendar2-check fs-2 text-success"></i>
+            <div>
+                <strong class="text-dark fs-6">Hari Bebas Presensi: <?= esc($agendaBebasAbsen['nama_agenda']) ?></strong>
+                <div class="small text-muted">
+                    Kategori: <?= ucfirst($agendaBebasAbsen['tipe']) ?> &bull; Status KBM: Bebas Absen &bull; <?= esc($agendaBebasAbsen['keterangan'] ?? '') ?>
+                </div>
+                <div class="small text-success fw-semibold mt-1">
+                    <i class="bi bi-check-circle me-1"></i> Siswa dibebaskan dari kewajiban presensi (auto null / tidak dihitung alfa).
+                </div>
+            </div>
+        </div>
+        <?php if (!empty($agendaBebasAbsen['target_kelas_id']) && (int)$agendaBebasAbsen['target_kelas_id'] === (int)$kelas['id']): ?>
+            <form action="<?= site_url('walas/batalkan-libur') ?>" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin membatalkan keterangan libur ini?');" class="m-0">
+                <?= csrf_field() ?>
+                <input type="hidden" name="agenda_id" value="<?= $agendaBebasAbsen['id'] ?>">
+                <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill px-3 fw-semibold">
+                    <i class="bi bi-x-circle me-1"></i> Batalkan Penandaan Libur
+                </button>
+            </form>
+        <?php endif; ?>
+    </div>
+<?php endif; ?>
+
 <?php if ($isPastDate): ?>
     <div class="alert alert-warning border-0 shadow-sm rounded-3 d-flex align-items-center gap-2 mb-4" role="alert">
         <i class="bi bi-clock-history fs-4 text-warning"></i>
@@ -52,10 +87,15 @@
                     Total Siswa: <?= count($daftarSiswa) ?> Orang
                 </span>
             </div>
-            <div>
+            <div class="d-flex align-items-center gap-2">
                 <button type="button" class="btn btn-sm btn-outline-success fw-semibold rounded-pill px-3" onclick="setSemuaHadir()">
                     <i class="bi bi-check-all me-1"></i> Set Semua Hadir (H)
                 </button>
+                <?php if (empty($agendaBebasAbsen) && !$isSunday): ?>
+                    <button type="button" class="btn btn-sm btn-outline-warning text-dark border-warning fw-semibold rounded-pill px-3" onclick="bukaModalTandaiLibur('<?= $tanggal ?>', '<?= date('d F Y', strtotime($tanggal)) ?>')">
+                        <i class="bi bi-calendar-event me-1"></i> Tandai Libur / Acara
+                    </button>
+                <?php endif; ?>
             </div>
         </div>
 
@@ -135,6 +175,78 @@
         <?php endif; ?>
     </div>
 </form>
+
+<!-- Modal Walas Tandai Libur / Acara Khusus -->
+<div class="modal fade" id="modalTandaiLibur" tabindex="-1" aria-labelledby="modalTandaiLiburLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header bg-warning bg-opacity-25 border-bottom border-warning py-3">
+                <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2" id="modalTandaiLiburLabel">
+                    <i class="bi bi-calendar2-check-fill text-warning"></i>
+                    Tandai Hari Libur / Acara Non-KBM
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="<?= site_url('walas/tandai-libur') ?>" method="POST">
+                <?= csrf_field() ?>
+                <input type="hidden" name="tanggal" id="libur_tanggal" value="">
+                
+                <div class="modal-body p-4">
+                    <div class="alert alert-warning bg-opacity-10 border-0 rounded-3 mb-3 d-flex align-items-start gap-2">
+                        <i class="bi bi-info-circle-fill text-warning fs-5 mt-1"></i>
+                        <div class="small text-muted">
+                            Fitur ini digunakan jika ada kegiatan/libur (misal: <strong>Maulid Nabi, Class Meeting, HUT Sekolah, Hari Libur Bersama</strong>) yang belum tercatat oleh Admin di Kalender Pendidikan. Presensi pada tanggal ini akan dinonaktifkan (bebas absen / auto null) dan notifikasi kelewat akan langsung hilang.
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-dark small">Tanggal Terpilih</label>
+                        <input type="text" class="form-control bg-light fw-bold text-primary" id="libur_tanggal_formatted" readonly>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="nama_agenda" class="form-label fw-bold text-dark small">Nama Agenda / Keterangan Libur <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="nama_agenda" name="nama_agenda" placeholder="Contoh: Libur Acara Maulid Nabi Muhammad SAW" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-dark small">Kategori Kegiatan <span class="text-danger">*</span></label>
+                        <div class="d-flex gap-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="tipe" id="tipe_libur" value="libur" checked>
+                                <label class="form-check-label small fw-semibold" for="tipe_libur">
+                                    <i class="bi bi-calendar-x text-danger me-1"></i> Hari Libur / Bebas KBM
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="tipe" id="tipe_acara" value="acara">
+                                <label class="form-check-label small fw-semibold" for="tipe_acara">
+                                    <i class="bi bi-trophy text-primary me-1"></i> Acara / Kegiatan Sekolah
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-dark small">Cakupan Keterangan</label>
+                        <select class="form-select" name="cakupan">
+                            <option value="kelas" selected>Hanya Berlaku Untuk Kelas Ini (<?= esc($kelas['nama_kelas'] ?? 'Kelas Saya') ?>)</option>
+                            <option value="tingkat">Berlaku Untuk Seluruh Kelas Se-Tingkat</option>
+                        </select>
+                        <div class="form-text small">Pilih "Hanya Berlaku Untuk Kelas Ini" agar tidak memengaruhi kelas lain, atau se-tingkat jika seluruh angkatan memiliki kegiatan serupa.</div>
+                    </div>
+                </div>
+
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-warning text-dark fw-bold rounded-pill px-4 shadow-sm">
+                        <i class="bi bi-check2-circle me-1"></i> Simpan & Bebaskan Absen
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 <?= $this->endSection() ?>
 
 <?= $this->section('scripts') ?>
@@ -143,6 +255,14 @@
         document.querySelectorAll('.radio-h').forEach(function(radio) {
             radio.checked = true;
         });
+    }
+
+    function bukaModalTandaiLibur(tanggal, formatted) {
+        document.getElementById('libur_tanggal').value = tanggal;
+        document.getElementById('libur_tanggal_formatted').value = formatted;
+        document.getElementById('nama_agenda').value = '';
+        var modal = new bootstrap.Modal(document.getElementById('modalTandaiLibur'));
+        modal.show();
     }
 
     // Validasi: semua siswa wajib punya status kehadiran sebelum simpan

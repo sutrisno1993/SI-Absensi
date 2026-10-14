@@ -35,6 +35,18 @@ $hasFoto = !empty($sesiKelas['foto_kelas']) && file_exists(FCPATH . $sesiKelas['
     </div>
 <?php endif; ?>
 
+<?php if (!empty($agendaBebasAbsen)): ?>
+    <div class="alert border-0 shadow-sm rounded-4 d-flex align-items-center gap-3 mb-4 text-warning" style="background-color: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3) !important;">
+        <i class="bi bi-calendar2-check-fill fs-2 text-warning"></i>
+        <div>
+            <strong class="fs-6 text-white">Hari Bebas Presensi: <?= esc($agendaBebasAbsen['nama_agenda']) ?></strong>
+            <div class="small text-light text-opacity-75">
+                Tanggal ini tercatat di kalender sekolah / ditandai sebagai agenda khusus (<?= esc($agendaBebasAbsen['tipe'] === 'libur' ? 'Libur Sekolah' : 'Acara Non-KBM') ?>). Presensi harian tidak diwajibkan (bebas absen / auto null).
+            </div>
+        </div>
+    </div>
+<?php endif; ?>
+
 <!-- Card Bagikan Link Presensi Realtime ke Grup WA Orang Tua -->
 <div class="card card-custom border-0 shadow-sm mb-4 bg-primary bg-opacity-10 border-start border-4 border-primary">
     <div class="card-body p-4">
