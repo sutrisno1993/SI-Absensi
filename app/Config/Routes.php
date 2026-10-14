@@ -79,6 +79,11 @@ $routes->group('admin', ['filter' => ['auth', 'role:admin']], static function ($
     $routes->get('keterlambatan-guru', 'AdminController::keterlambatanGuru');
     $routes->post('keterlambatan-guru/pengaturan', 'AdminController::simpanPengaturanJam');
     $routes->get('keterlambatan-guru/export-excel', 'AdminController::exportKeterlambatanGuruExcel');
+
+    // Kalender Pendidikan & Hari Libur Sekolah
+    $routes->get('kalender-pendidikan', 'AdminController::kalenderPendidikan');
+    $routes->post('kalender-pendidikan/simpan', 'AdminController::simpanKalenderPendidikan');
+    $routes->get('kalender-pendidikan/hapus/(:num)', 'AdminController::hapusKalenderPendidikan/$1');
 });
 
 // Guru Piket Route Group (Filter: auth, role:admin,walas,guru_piket)

@@ -54,7 +54,7 @@ class AbsensiModel extends Model
         $db->transStart();
 
         foreach ($attendances as $siswaId => $data) {
-            $status = in_array($data['status'] ?? 'H', ['H', 'S', 'I', 'A']) ? $data['status'] : 'H';
+            $status = in_array($data['status'] ?? 'H', ['H', 'S', 'I', 'A', 'P']) ? $data['status'] : 'H';
             $keterangan = !empty($data['keterangan']) ? trim($data['keterangan']) : null;
 
             // Cek apakah data sudah ada
@@ -157,6 +157,7 @@ class AbsensiModel extends Model
             COUNT(CASE WHEN a.status = "S" THEN 1 END) as total_s,
             COUNT(CASE WHEN a.status = "I" THEN 1 END) as total_i,
             COUNT(CASE WHEN a.status = "A" THEN 1 END) as total_a,
+            COUNT(CASE WHEN a.status = "P" THEN 1 END) as total_p,
             MAX(a.keterangan) as keterangan
         ');
         
@@ -256,7 +257,8 @@ class AbsensiModel extends Model
             COUNT(CASE WHEN a.status = "H" THEN 1 END) as total_h,
             COUNT(CASE WHEN a.status = "S" THEN 1 END) as total_s,
             COUNT(CASE WHEN a.status = "I" THEN 1 END) as total_i,
-            COUNT(CASE WHEN a.status = "A" THEN 1 END) as total_a
+            COUNT(CASE WHEN a.status = "A" THEN 1 END) as total_a,
+            COUNT(CASE WHEN a.status = "P" THEN 1 END) as total_p
         ');
         $builder->join('guru g', 'g.id = k.walas_id', 'left');
         $builder->join('siswa s', 's.kelas_id = k.id', 'left');
@@ -345,7 +347,8 @@ class AbsensiModel extends Model
             SUM(CASE WHEN status = 'H' THEN 1 ELSE 0 END) as total_hadir,
             SUM(CASE WHEN status = 'S' THEN 1 ELSE 0 END) as total_sakit,
             SUM(CASE WHEN status = 'I' THEN 1 ELSE 0 END) as total_izin,
-            SUM(CASE WHEN status = 'A' THEN 1 ELSE 0 END) as total_alfa
+            SUM(CASE WHEN status = 'A' THEN 1 ELSE 0 END) as total_alfa,
+            SUM(CASE WHEN status = 'P' THEN 1 ELSE 0 END) as total_pkl
         ");
 
         if ($startDate && $endDate) {
@@ -368,7 +371,9 @@ class AbsensiModel extends Model
         }
         $totalTerlambat = $builderT->countAllResults();
 
-        $persenHadir = $totalSesi > 0 ? round(($totalHadir / $totalSesi) * 100, 1) : 0;
+        $totalPkl   = (int)($row['total_pkl'] ?? 0);
+        $totalHadirSah = $totalHadir + $totalPkl;
+        $persenHadir = $totalSesi > 0 ? round(($totalHadirSah / $totalSesi) * 100, 1) : 0;
         $persenSakit = $totalSesi > 0 ? round(($totalSakit / $totalSesi) * 100, 1) : 0;
         $persenIzin  = $totalSesi > 0 ? round(($totalIzin / $totalSesi) * 100, 1) : 0;
         $persenAlfa  = $totalSesi > 0 ? round(($totalAlfa / $totalSesi) * 100, 1) : 0;
@@ -449,6 +454,7 @@ class AbsensiModel extends Model
                 COUNT(CASE WHEN a.status = 'S' THEN 1 END) as total_s,
                 COUNT(CASE WHEN a.status = 'I' THEN 1 END) as total_i,
                 COUNT(CASE WHEN a.status = 'A' THEN 1 END) as total_a,
+                COUNT(CASE WHEN a.status = 'P' THEN 1 END) as total_p,
                 MAX(a.updated_at) as waktu_update,
                 pkh.foto_kelas,
                 pkh.share_token
@@ -489,6 +495,157 @@ class AbsensiModel extends Model
             $r['status_badge']      = $statusBadge;
 
             $result[] = $r;
+        }
+
+        return $result;
+    }
+
+    /**
+     * Deteksi tingkat kelas dari nama kelas (X, XI, XII)
+     */
+    public function getTingkatKelas(string $namaKelas): string
+    {
+        if (preg_match('/(^|\b)(XII|12)\b/i', $namaKelas)) {
+            return 'XII';
+        }
+        if (preg_match('/(^|\b)(XI|11)\b/i', $namaKelas)) {
+            return 'XI';
+        }
+        if (preg_match('/(^|\b)(X|10)\b/i', $namaKelas)) {
+            return 'X';
+        }
+        return 'semua';
+    }
+
+    /**
+     * Cek apakah kelas merupakan Kelas 2 (Tingkat XI / 11) untuk penentuan opsi PKL (P)
+     */
+    public function isKelas2(string $namaKelas): bool
+    {
+        return $this->getTingkatKelas($namaKelas) === 'XI';
+    }
+
+    /**
+     * Mengambil daftar tanggal aktif belajar (Senin-Sabtu) yang kelewat / NULL / belum pernah diinput
+     * dengan mengecek apakah tanggal tersebut adalah hari libur / acara bebas absen di Kalender Pendidikan.
+     */
+    public function getTanggalKelewatKelas(int $kelasId, ?string $startDate = null, ?string $endDate = null): array
+    {
+        $db = $this->db;
+        $endDate   = $endDate ?: date('Y-m-d');
+        // Default mulai tanggal tahun ajaran baru: 21 Juli 2026
+        $startDate = $startDate ?: '2026-07-21';
+
+        $kelas = $db->table('kelas')->where('id', $kelasId)->get()->getRowArray();
+        if (!$kelas) {
+            return [];
+        }
+
+        $tingkat = $this->getTingkatKelas($kelas['nama_kelas']);
+
+        // Ambil data kalender pendidikan
+        $kalenderModel = new \App\Models\KalenderPendidikanModel();
+        $agendaLibur = $kalenderModel->getHariBebasAbsenMap($startDate, $endDate);
+
+        // Ambil tanggal-tanggal yang SUDAH diinput oleh kelas ini
+        $sqlDates = "
+            SELECT DISTINCT a.tanggal 
+            FROM absensi a 
+            JOIN siswa s ON s.id = a.siswa_id 
+            WHERE s.kelas_id = " . (int)$kelasId . " 
+              AND a.tanggal >= " . $db->escape($startDate) . " 
+              AND a.tanggal <= " . $db->escape($endDate) . "
+        ";
+        $datesDiinput = $db->query($sqlDates)->getResultArray();
+        $diinputMap = array_column($datesDiinput, 'tanggal');
+
+        $daftarHariIndo = [
+            0 => 'Minggu',
+            1 => 'Senin',
+            2 => 'Selasa',
+            3 => 'Rabu',
+            4 => 'Kamis',
+            5 => 'Jumat',
+            6 => 'Sabtu',
+        ];
+
+        $daftarBulanIndo = [
+            1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April',
+            5 => 'Mei', 6 => 'Juni', 7 => 'Juli', 8 => 'Agustus',
+            9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember'
+        ];
+
+        $tanggalKelewat = [];
+        $current = strtotime($startDate);
+        $last    = strtotime($endDate);
+
+        while ($current <= $last) {
+            $tglStr = date('Y-m-d', $current);
+            $dayOfWeek = (int)date('w', $current); // 0 = Minggu
+
+            // 1. Abaikan hari Minggu (0) -> Hanya Senin sampai Sabtu
+            if ($dayOfWeek !== 0) {
+                // 2. Cek apakah tanggal ini adalah Libur / Acara Bebas Absen di Kalender Pendidikan
+                $isLibur = false;
+                foreach ($agendaLibur as $agenda) {
+                    if ($tglStr >= $agenda['tanggal_mulai'] && $tglStr <= $agenda['tanggal_selesai']) {
+                        $targetTingkat = $agenda['target_tingkat'] ?? 'semua';
+                        $targetKelasId = !empty($agenda['target_kelas_id']) ? (int)$agenda['target_kelas_id'] : null;
+
+                        if ($targetTingkat === 'semua' || $targetTingkat === $tingkat || $targetKelasId === $kelasId) {
+                            $isLibur = true;
+                            break;
+                        }
+                    }
+                }
+
+                // 3. Jika bukan libur dan belum pernah diinput absensinya
+                if (!$isLibur && !in_array($tglStr, $diinputMap, true)) {
+                    $dayNum = (int)date('j', $current);
+                    $monthNum = (int)date('n', $current);
+                    $yearNum = date('Y', $current);
+
+                    $tanggalKelewat[] = [
+                        'tanggal'   => $tglStr,
+                        'hari'      => $daftarHariIndo[$dayOfWeek],
+                        'formatted' => $daftarHariIndo[$dayOfWeek] . ', ' . $dayNum . ' ' . ($daftarBulanIndo[$monthNum] ?? '') . ' ' . $yearNum,
+                        'is_today'  => ($tglStr === date('Y-m-d')),
+                    ];
+                }
+            }
+
+            $current = strtotime('+1 day', $current);
+        }
+
+        // Urutkan dari tanggal terbaru ke terlama
+        usort($tanggalKelewat, function ($a, $b) {
+            return strcmp($b['tanggal'], $a['tanggal']);
+        });
+
+        return $tanggalKelewat;
+    }
+
+    /**
+     * Mengambil daftar seluruh kelas yang memiliki tanggal aktif belajar belum diinput (untuk Admin)
+     */
+    public function getAllKelasTanggalKelewat(?string $startDate = null, ?string $endDate = null): array
+    {
+        $db = $this->db;
+        $kelasList = $db->table('kelas k')
+                        ->select('k.id, k.nama_kelas, k.shift, g.nama_guru as nama_walas, g.no_hp as no_hp_walas')
+                        ->join('guru g', 'g.id = k.walas_id', 'left')
+                        ->orderBy('k.nama_kelas', 'ASC')
+                        ->get()
+                        ->getResultArray();
+
+        $result = [];
+        foreach ($kelasList as $k) {
+            $kelewat = $this->getTanggalKelewatKelas((int)$k['id'], $startDate, $endDate);
+            if (!empty($kelewat)) {
+                $k['daftar_kelewat'] = $kelewat;
+                $k['total_kelewat']  = count($kelewat);
+                $result[] = $k;
+            }
         }
 
         return $result;

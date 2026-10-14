@@ -55,6 +55,9 @@ class WalasController extends BaseController
         // 4. Daftar seluruh siswa aktif untuk dropdown form bina siswa
         $daftarSiswa = $this->siswaModel->getSiswaAktifByKelas($kelasId);
 
+        // 5. Cek hari aktif belajar yang kelewat / belum diinput presensinya
+        $tanggalKelewat = $this->absensiModel->getTanggalKelewatKelas($kelasId);
+
         return view('walas/dashboard', [
             'title'            => 'Dashboard Wali Kelas',
             'kelas'            => $kelas,
@@ -62,6 +65,7 @@ class WalasController extends BaseController
             'rekapBulanIni'    => $rekapBulanIni,
             'riwayatPembinaan' => $riwayatPembinaan,
             'daftarSiswa'      => $daftarSiswa,
+            'tanggalKelewat'   => $tanggalKelewat,
         ]);
     }
 
@@ -87,12 +91,14 @@ class WalasController extends BaseController
         }
 
         $daftarSiswa = $this->absensiModel->getAbsensiByDateAndKelas($tanggal, $kelasId);
+        $isKelas2    = $this->absensiModel->isKelas2($kelas['nama_kelas']);
 
         return view('walas/absen_harian', [
             'title'       => 'Input Presensi Kelas ' . $kelas['nama_kelas'],
             'kelas'       => $kelas,
             'tanggal'     => $tanggal,
             'daftarSiswa' => $daftarSiswa,
+            'isKelas2'    => $isKelas2,
         ]);
     }
 
@@ -127,7 +133,7 @@ class WalasController extends BaseController
             }
 
             // Validasi: status kehadiran wajib diisi (tidak boleh null/kosong)
-            if (empty($row['status']) || !in_array($row['status'], ['H', 'S', 'I', 'A'])) {
+            if (empty($row['status']) || !in_array($row['status'], ['H', 'S', 'I', 'A', 'P'])) {
                 return redirect()->back()->with('error', 'Status kehadiran wajib dipilih untuk semua siswa. Pastikan tidak ada yang kosong.');
             }
 

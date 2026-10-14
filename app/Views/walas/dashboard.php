@@ -66,6 +66,46 @@
     </div>
 </div>
 
+<!-- CRITICAL ALERT: Presensi Hari Aktif Belajar Belum Diinput (Kelewat) -->
+<?php if (! empty($tanggalKelewat)): ?>
+    <div class="card border-warning border-2 shadow-sm rounded-4 mb-4 overflow-hidden">
+        <div class="card-header bg-warning bg-opacity-25 border-warning py-3 d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-clock-history fs-3 text-warning"></i>
+                <div>
+                    <h5 class="mb-0 fw-bold text-dark">Peringatan: Presensi Kelas Belum Diinput!</h5>
+                    <small class="text-muted">Terdapat <strong><?= count($tanggalKelewat) ?> hari aktif belajar (Senin-Sabtu)</strong> sejak 21 Juli 2026 yang belum memiliki catatan absensi.</small>
+                </div>
+            </div>
+            <span class="badge bg-warning text-dark fw-bold px-3 py-2 rounded-pill">
+                <i class="bi bi-exclamation-triangle-fill me-1"></i> Perlu Dilengkapi
+            </span>
+        </div>
+        <div class="card-body p-3 bg-light" style="max-height: 420px; overflow-y: auto;">
+            <div class="row g-2">
+                <?php foreach ($tanggalKelewat as $tk): ?>
+                    <div class="col-12 col-md-6 col-lg-4">
+                        <div class="card border-0 shadow-sm p-3 rounded-3 bg-white d-flex flex-row align-items-center justify-content-between">
+                            <div>
+                                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 mb-1">
+                                    <i class="bi bi-calendar-x me-1"></i> <?= $tk['hari'] ?>
+                                </span>
+                                <div class="fw-bold text-dark"><?= esc($tk['formatted']) ?></div>
+                                <small class="text-muted"><?= $tk['is_today'] ? 'Hari Ini (Belum Diinput)' : 'Hari Lampau Terlewat' ?></small>
+                            </div>
+                            <div>
+                                <a href="<?= site_url('walas/absen?tanggal=' . $tk['tanggal']) ?>" class="btn btn-sm btn-primary-custom px-3 rounded-pill fw-semibold shadow-sm">
+                                    <i class="bi bi-pencil-square me-1"></i> Isi Absen
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+    </div>
+<?php endif; ?>
+
 <!-- CRITICAL ALERT: Siswa Perlu Pembinaan (Alpa > 3) -->
 <?php if (! empty($siswaBermasalah)): ?>
     <div class="card border-danger border-2 shadow-sm rounded-4 mb-4 overflow-hidden">

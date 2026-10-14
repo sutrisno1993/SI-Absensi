@@ -129,3 +129,4 @@ _modules/*
 /results/
 /phpunit.xml
 jalankan_aplikasi.bat
+backup_smkmaret_osis_before_reset.sql

@@ -576,6 +576,13 @@
             box-shadow: 0 4px 12px rgba(239, 68, 68, 0.45);
         }
 
+        .status-pill-radio[value="P"]:checked + .status-label {
+            background: #8b5cf6;
+            border-color: #8b5cf6;
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(139, 92, 246, 0.45);
+        }
+
         /* Badges */
         .badge.bg-light {
             background-color: rgba(255, 255, 255, 0.08) !important;
@@ -583,6 +590,7 @@
             border-color: rgba(255, 255, 255, 0.12) !important;
         }
         .badge-h { background-color: rgba(16, 185, 129, 0.2); color: #6ee7b7; font-weight: 600; }
+        .badge-p { background-color: rgba(139, 92, 246, 0.2); color: #c4b5fd; font-weight: 600; }
         .badge-s { background-color: rgba(59, 130, 246, 0.2); color: #93c5fd; font-weight: 600; }
         .badge-i { background-color: rgba(245, 158, 11, 0.2); color: #fde68a; font-weight: 600; }
         .badge-a { background-color: rgba(239, 68, 68, 0.2); color: #fca5a5; font-weight: 600; }
@@ -690,6 +698,10 @@
                         <a class="sidebar-link <?= str_starts_with(uri_string(), 'admin/siswa') ? 'active' : '' ?>" href="<?= site_url('admin/siswa') ?>">
                             <i class="bi bi-people"></i>
                             <span>Data Siswa</span>
+                        </a>
+                        <a class="sidebar-link <?= str_starts_with(uri_string(), 'admin/kalender-pendidikan') ? 'active' : '' ?>" href="<?= site_url('admin/kalender-pendidikan') ?>">
+                            <i class="bi bi-calendar-event"></i>
+                            <span>Kalender & Libur</span>
                         </a>
                         <a class="sidebar-link <?= str_starts_with(uri_string(), 'admin/users') ? 'active' : '' ?>" href="<?= site_url('admin/users') ?>">
                             <i class="bi bi-shield-lock"></i>

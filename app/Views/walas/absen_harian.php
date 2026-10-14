@@ -107,6 +107,13 @@
                                             <input type="radio" class="status-pill-radio" name="absensi[<?= $s['siswa_id'] ?>][status]" value="A" <?= $currentStatus === 'A' ? 'checked' : '' ?>>
                                             <span class="status-label" title="Alpa / Tanpa Keterangan">A</span>
                                         </label>
+                                        <?php if (! empty($isKelas2)): ?>
+                                        <!-- PKL (Khusus Kelas 2 / XI) -->
+                                        <label>
+                                            <input type="radio" class="status-pill-radio" name="absensi[<?= $s['siswa_id'] ?>][status]" value="P" <?= $currentStatus === 'P' ? 'checked' : '' ?>>
+                                            <span class="status-label" title="Praktik Kerja Lapangan (PKL / Magang)">P</span>
+                                        </label>
+                                        <?php endif; ?>
                                     </div>
                                 </td>
                                 <td>

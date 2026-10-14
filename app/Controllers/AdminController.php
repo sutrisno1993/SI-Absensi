@@ -28,6 +28,7 @@ class AdminController extends BaseController
     protected $keterlambatanSiswaModel;
     protected $piketPetugasModel;
     protected $pengaturanModel;
+    protected $kalenderPendidikanModel;
     protected $exportService;
 
     public function __construct()
@@ -43,6 +44,7 @@ class AdminController extends BaseController
         $this->keterlambatanSiswaModel = new KeterlambatanSiswaModel();
         $this->piketPetugasModel       = new PiketPetugasModel();
         $this->pengaturanModel         = new PengaturanModel();
+        $this->kalenderPendidikanModel = new \App\Models\KalenderPendidikanModel();
         $this->exportService           = new ExportService();
     }
 
@@ -64,6 +66,9 @@ class AdminController extends BaseController
         $tanggalHariIni = date('Y-m-d');
         $statusPresensiKelasHariIni = $this->absensiModel->getStatusInputPresensiKelas($tanggalHariIni);
 
+        // Audit presensi yang belum diinput pada hari aktif belajar (Senin-Sabtu)
+        $allKelasKelewat = $this->absensiModel->getAllKelasTanggalKelewat();
+
         return view('admin/dashboard', [
             'title'                      => 'Dashboard Administrator',
             'totalGuru'                  => $totalGuru,
@@ -74,6 +79,7 @@ class AdminController extends BaseController
             'riwayatPembinaan'           => $riwayatPembinaan,
             'topSiswaAlpa'               => $topSiswaAlpa,
             'statusPresensiKelasHariIni' => $statusPresensiKelasHariIni,
+            'allKelasKelewat'            => $allKelasKelewat,
             'tanggalHariIni'             => $tanggalHariIni,
         ]);
     }
@@ -1279,6 +1285,75 @@ class AdminController extends BaseController
         $keterlambatanList = $this->absensiGuruModel->getKeterlambatanList($startDate, $endDate, $guruId, $shift);
 
         return $this->exportService->exportKeterlambatanGuruExcel($keterlambatanList, $startDate, $endDate);
+    }
+
+    // ==========================================
+    // 9. KALENDER PENDIDIKAN & HARI LIBUR SEKOLAH
+    // ==========================================
+    public function kalenderPendidikan()
+    {
+        $agendaList = $this->kalenderPendidikanModel->getAllAgenda();
+        $kelasList  = $this->kelasModel->orderBy('nama_kelas', 'ASC')->findAll();
+
+        return view('admin/kalender_pendidikan', [
+            'title'      => 'Kalender Pendidikan & Hari Libur Sekolah',
+            'agendaList' => $agendaList,
+            'kelasList'  => $kelasList,
+        ]);
+    }
+
+    public function simpanKalenderPendidikan()
+    {
+        $id = $this->request->getPost('id');
+
+        $rules = [
+            'nama_agenda'    => 'required|min_length[3]',
+            'tanggal_mulai'  => 'required|valid_date',
+            'tanggal_selesai'=> 'required|valid_date',
+            'tipe'           => 'required|in_list[libur,acara]',
+            'keterangan_kbm' => 'required|in_list[bebas_absen,wajib_absen]',
+            'target_tingkat' => 'required|in_list[semua,X,XI,XII]',
+        ];
+
+        if (! $this->validate($rules)) {
+            return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
+        }
+
+        $tanggalMulai   = $this->request->getPost('tanggal_mulai');
+        $tanggalSelesai = $this->request->getPost('tanggal_selesai');
+
+        if (strtotime($tanggalSelesai) < strtotime($tanggalMulai)) {
+            return redirect()->back()->withInput()->with('error', 'Tanggal selesai tidak boleh lebih awal dari tanggal mulai.');
+        }
+
+        $targetKelasId = $this->request->getPost('target_kelas_id') ? (int)$this->request->getPost('target_kelas_id') : null;
+
+        $data = [
+            'nama_agenda'    => trim($this->request->getPost('nama_agenda')),
+            'tanggal_mulai'  => $tanggalMulai,
+            'tanggal_selesai'=> $tanggalSelesai,
+            'tipe'           => $this->request->getPost('tipe'),
+            'keterangan_kbm' => $this->request->getPost('keterangan_kbm'),
+            'target_tingkat' => $this->request->getPost('target_tingkat'),
+            'target_kelas_id'=> $targetKelasId,
+            'keterangan'     => trim($this->request->getPost('keterangan') ?? ''),
+        ];
+
+        if (! empty($id)) {
+            $this->kalenderPendidikanModel->update($id, $data);
+            $msg = 'Agenda kalender pendidikan berhasil diperbarui!';
+        } else {
+            $this->kalenderPendidikanModel->insert($data);
+            $msg = 'Agenda kalender pendidikan berhasil ditambahkan!';
+        }
+
+        return redirect()->to('/admin/kalender-pendidikan')->with('success', $msg);
+    }
+
+    public function hapusKalenderPendidikan($id)
+    {
+        $this->kalenderPendidikanModel->delete($id);
+        return redirect()->to('/admin/kalender-pendidikan')->with('success', 'Agenda kalender pendidikan berhasil dihapus.');
     }
 }
 

@@ -50,13 +50,15 @@ class PjKelasController extends BaseController
         $walas = !empty($kelas['walas_id']) ? $this->guruModel->find($kelas['walas_id']) : null;
 
         // Hitung rekapitulasi kehadiran hari ini
-        $countH = 0; $countS = 0; $countI = 0; $countA = 0;
+        $isKelas2 = $this->absensiModel->isKelas2($kelas['nama_kelas']);
+        $countH = 0; $countS = 0; $countI = 0; $countA = 0; $countP = 0;
         foreach ($daftarSiswa as $s) {
             $st = $s['status'] ?? 'H';
             if ($st === 'H') $countH++;
             elseif ($st === 'S') $countS++;
             elseif ($st === 'I') $countI++;
             elseif ($st === 'A') $countA++;
+            elseif ($st === 'P') $countP++;
         }
 
         return view('pj/absen_harian', [
@@ -70,6 +72,8 @@ class PjKelasController extends BaseController
             'countS'      => $countS,
             'countI'      => $countI,
             'countA'      => $countA,
+            'countP'      => $countP,
+            'isKelas2'    => $isKelas2,
         ]);
     }
 
@@ -89,6 +93,13 @@ class PjKelasController extends BaseController
         // Ambil daftar valid siswa_id aktif pada kelas ini (Security Data Isolation)
         $validSiswaList = array_map('intval', $this->siswaModel->where('kelas_id', $kelasId)->where('status', 'Aktif')->findColumn('id') ?: []);
 
+        // Status yang diizinkan (tambahkan P jika Kelas 2 / XI)
+        $allowedStatuses = ['H', 'S', 'I', 'A'];
+        $kelas = $this->kelasModel->find($kelasId);
+        if ($kelas && $this->absensiModel->isKelas2($kelas['nama_kelas'])) {
+            $allowedStatuses[] = 'P';
+        }
+
         // Validasi: pastikan tidak ada siswa_id dari luar kelas yang diselundupkan
         $sanitizedData = [];
         foreach ($inputAbsensi as $siswaId => $row) {
@@ -98,7 +109,7 @@ class PjKelasController extends BaseController
             }
 
             // Validasi: status kehadiran wajib diisi (tidak boleh null/kosong)
-            if (empty($row['status']) || !in_array($row['status'], ['H', 'S', 'I', 'A'])) {
+            if (empty($row['status']) || !in_array($row['status'], $allowedStatuses)) {
                 return redirect()->back()->with('error', 'Status kehadiran wajib dipilih untuk semua siswa. Pastikan tidak ada yang kosong.');
             }
 

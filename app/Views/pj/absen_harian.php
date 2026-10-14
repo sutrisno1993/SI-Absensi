@@ -25,6 +25,16 @@ $hasFoto = !empty($sesiKelas['foto_kelas']) && file_exists(FCPATH . $sesiKelas['
     </div>
 </div>
 
+<?php if ((int)date('w', strtotime($tanggal)) === 0): ?>
+    <div class="alert border-0 shadow-sm rounded-4 d-flex align-items-center gap-3 mb-4 text-success" style="background-color: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3) !important;">
+        <i class="bi bi-cup-hot-fill fs-2 text-success"></i>
+        <div>
+            <strong class="fs-6 text-white">Hari Ini Hari Minggu (Libur Akhir Pekan)</strong>
+            <div class="small text-light text-opacity-75">Kegiatan Belajar Mengajar (KBM) reguler libur. Presensi harian tidak diwajibkan kecuali kelas Anda ada agenda atau acara khusus sekolah.</div>
+        </div>
+    </div>
+<?php endif; ?>
+
 <!-- Card Bagikan Link Presensi Realtime ke Grup WA Orang Tua -->
 <div class="card card-custom border-0 shadow-sm mb-4 bg-primary bg-opacity-10 border-start border-4 border-primary">
     <div class="card-body p-4">
@@ -59,6 +69,11 @@ $hasFoto = !empty($sesiKelas['foto_kelas']) && file_exists(FCPATH . $sesiKelas['
                             <span class="badge bg-danger bg-opacity-20 text-danger border border-danger border-opacity-30 px-2 py-1">
                                 Alpha: <strong><?= $countA ?></strong>
                             </span>
+                            <?php if (! empty($isKelas2)): ?>
+                            <span class="badge px-2 py-1" style="background-color: rgba(139,92,246,0.25) !important; color: #c4b5fd !important; border: 1px solid rgba(139,92,246,0.4) !important;">
+                                PKL: <strong><?= $countP ?></strong>
+                            </span>
+                            <?php endif; ?>
                             <span class="badge bg-dark text-muted border px-2 py-1">
                                 Total: <?= count($daftarSiswa) ?> Siswa
                             </span>
@@ -196,6 +211,13 @@ $hasFoto = !empty($sesiKelas['foto_kelas']) && file_exists(FCPATH . $sesiKelas['
                                             <input type="radio" class="status-pill-radio" name="absensi[<?= $s['siswa_id'] ?>][status]" value="A" <?= $currentStatus === 'A' ? 'checked' : '' ?>>
                                             <span class="status-label" title="Alpa / Tanpa Keterangan">A</span>
                                         </label>
+                                        <?php if (! empty($isKelas2)): ?>
+                                        <!-- PKL (Khusus Kelas 2 / XI) -->
+                                        <label>
+                                            <input type="radio" class="status-pill-radio" name="absensi[<?= $s['siswa_id'] ?>][status]" value="P" <?= $currentStatus === 'P' ? 'checked' : '' ?>>
+                                            <span class="status-label" title="Praktik Kerja Lapangan (PKL / Magang)">P</span>
+                                        </label>
+                                        <?php endif; ?>
                                     </div>
                                 </td>
                                 <td>

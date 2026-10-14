@@ -102,6 +102,7 @@ if (! empty($statusPresensiKelasHariIni)) {
 $hariIndo = ['Sunday'=>'Minggu', 'Monday'=>'Senin', 'Tuesday'=>'Selasa', 'Wednesday'=>'Rabu', 'Thursday'=>'Kamis', 'Friday'=>'Jumat', 'Saturday'=>'Sabtu'];
 $namaBulanIndo = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 $tglObj = strtotime($tanggalHariIni ?? date('Y-m-d'));
+$isMinggu = ((int)date('w', $tglObj) === 0);
 $labelHariIni = ($hariIndo[date('l', $tglObj)] ?? date('l', $tglObj)) . ', ' . date('j', $tglObj) . ' ' . ($namaBulanIndo[(int)date('n', $tglObj)] ?? '') . ' ' . date('Y', $tglObj);
 ?>
 
@@ -118,24 +119,34 @@ $labelHariIni = ($hariIndo[date('l', $tglObj)] ?? date('l', $tglObj)) . ', ' . d
                 </div>
             </div>
             <div class="d-flex flex-wrap align-items-center gap-2">
-                <button type="button" class="btn btn-sm btn-outline-danger filter-btn-status <?= $cntBelum > 0 ? 'active bg-danger text-white' : '' ?>" onclick="filterStatusKelas('belum', this)">
+                <button type="button" class="btn btn-sm btn-outline-danger filter-btn-status <?= (!$isMinggu && $cntBelum > 0) ? 'active bg-danger text-white' : '' ?>" onclick="filterStatusKelas('belum', this)">
                     <i class="bi bi-exclamation-circle-fill me-1"></i> Belum Input (<?= $cntBelum ?>)
                 </button>
-                <button type="button" class="btn btn-sm btn-outline-warning filter-btn-status <?= $cntBelum === 0 && $cntSebagian > 0 ? 'active bg-warning text-dark' : '' ?>" onclick="filterStatusKelas('sebagian', this)">
+                <button type="button" class="btn btn-sm btn-outline-warning filter-btn-status <?= (!$isMinggu && $cntBelum === 0 && $cntSebagian > 0) ? 'active bg-warning text-dark' : '' ?>" onclick="filterStatusKelas('sebagian', this)">
                     <i class="bi bi-hourglass-split me-1"></i> Sebagian (<?= $cntSebagian ?>)
                 </button>
-                <button type="button" class="btn btn-sm btn-outline-success filter-btn-status <?= $cntBelum === 0 && $cntSebagian === 0 ? 'active bg-success text-white' : '' ?>" onclick="filterStatusKelas('lengkap', this)">
+                <button type="button" class="btn btn-sm btn-outline-success filter-btn-status <?= (!$isMinggu && $cntBelum === 0 && $cntSebagian === 0) ? 'active bg-success text-white' : '' ?>" onclick="filterStatusKelas('lengkap', this)">
                     <i class="bi bi-check-circle-fill me-1"></i> Sudah Lengkap (<?= $cntLengkap ?>)
                 </button>
-                <button type="button" class="btn btn-sm btn-outline-secondary filter-btn-status" onclick="filterStatusKelas('all', this)">
+                <button type="button" class="btn btn-sm btn-outline-secondary filter-btn-status <?= $isMinggu ? 'active bg-secondary text-white' : '' ?>" onclick="filterStatusKelas('all', this)">
                     Semua Kelas (<?= $totalKls ?>)
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- Alert peringatan jika ada kelas yang belum input -->
-    <?php if ($cntBelum > 0): ?>
+    <!-- Alert status hari Minggu atau hari aktif belajar -->
+    <?php if ($isMinggu): ?>
+        <div class="px-3 pt-2">
+            <div class="alert alert-success bg-success bg-opacity-10 border-success border-opacity-25 d-flex align-items-center p-3 rounded-3 mb-0 gap-3">
+                <i class="bi bi-cup-hot-fill fs-3 text-success"></i>
+                <div>
+                    <strong class="text-success">Hari Ini Hari Minggu (Libur Akhir Pekan):</strong>
+                    <div class="small text-muted">Seluruh kelas libur KBM reguler. Sistem tidak menuntut pengisian presensi untuk hari ini.</div>
+                </div>
+            </div>
+        </div>
+    <?php elseif ($cntBelum > 0): ?>
         <div class="px-3 pt-2">
             <div class="alert alert-danger bg-danger bg-opacity-10 border-danger border-opacity-25 d-flex flex-wrap align-items-center justify-content-between p-3 rounded-3 mb-0 gap-2">
                 <div class="d-flex align-items-center gap-2">
@@ -256,6 +267,86 @@ $labelHariIni = ($hariIndo[date('l', $tglObj)] ?? date('l', $tglObj)) . ', ' . d
         </table>
     </div>
 </div>
+
+<!-- ======================================================= -->
+<!-- SECTION: AUDIT PRESENSI KELEWAT (HARI AKTIF BELAJAR)    -->
+<!-- ======================================================= -->
+<?php if (! empty($allKelasKelewat)): ?>
+    <div class="card border-warning border-2 shadow-sm rounded-4 mb-4 overflow-hidden">
+        <div class="card-header bg-warning bg-opacity-25 border-warning py-3 d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-exclamation-triangle-fill fs-3 text-warning"></i>
+                <div>
+                    <h5 class="mb-0 fw-bold text-dark">Peringatan: Ada Presensi Kelas Belum Diinput di Hari Aktif Belajar!</h5>
+                    <small class="text-muted">Ditemukan <strong><?= count($allKelasKelewat) ?> kelas</strong> yang memiliki tanggal belajar (Senin-Sabtu) belum diisi presensinya sejak 21 Juli 2026.</small>
+                </div>
+            </div>
+            <div>
+                <a href="<?= site_url('admin/kalender-pendidikan') ?>" class="btn btn-sm btn-outline-dark fw-semibold rounded-pill">
+                    <i class="bi bi-calendar-event me-1"></i> Atur Kalender & Hari Libur
+                </a>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="text-center" style="width: 50px;">No</th>
+                            <th style="width: 180px;">Kelas</th>
+                            <th style="width: 200px;">Wali Kelas</th>
+                            <th>Tanggal-Tanggal yang Belum Diinput</th>
+                            <th class="text-end" style="width: 140px;">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($allKelasKelewat as $idx => $ak): ?>
+                            <?php
+                                $noHpClean = !empty($ak['no_hp_walas']) ? preg_replace('/[^0-9]/', '', $ak['no_hp_walas']) : null;
+                                if (!empty($noHpClean) && str_starts_with($noHpClean, '0')) {
+                                    $noHpClean = '62' . substr($noHpClean, 1);
+                                }
+                                $tglListStr = implode(', ', array_map(function($d) { return $d['hari'] . ' (' . $d['tanggal'] . ')'; }, $ak['daftar_kelewat']));
+                                $pesanWA = "Halo Bapak/Ibu " . ($ak['nama_walas'] ?? 'Wali Kelas') . ", mengingatkan bahwa presensi kelas " . $ak['nama_kelas'] . " belum diinput pada: " . $tglListStr . ". Mohon segera dilengkapi melalui aplikasi SI-ABSEN.";
+                            ?>
+                            <tr>
+                                <td class="text-center text-muted fw-semibold"><?= $idx + 1 ?></td>
+                                <td>
+                                    <div class="fw-bold text-dark fs-6"><?= esc($ak['nama_kelas']) ?></div>
+                                    <span class="badge bg-light text-muted border"><?= esc($ak['shift']) ?></span>
+                                </td>
+                                <td>
+                                    <div class="fw-semibold text-dark"><?= esc($ak['nama_walas'] ?? 'Belum Ditentukan') ?></div>
+                                    <?php if (!empty($ak['no_hp_walas'])): ?>
+                                        <small class="text-muted"><i class="bi bi-whatsapp text-success me-1"></i><?= esc($ak['no_hp_walas']) ?></small>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <div class="d-flex flex-wrap gap-1">
+                                        <?php foreach ($ak['daftar_kelewat'] as $dk): ?>
+                                            <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-2 py-1" title="<?= esc($dk['formatted']) ?>">
+                                                <i class="bi bi-calendar-x me-1"></i><?= $dk['hari'] ?>, <?= date('d/m', strtotime($dk['tanggal'])) ?>
+                                            </span>
+                                        <?php endforeach; ?>
+                                    </div>
+                                </td>
+                                <td class="text-end">
+                                    <?php if (!empty($noHpClean)): ?>
+                                        <a href="https://api.whatsapp.com/send?phone=<?= $noHpClean ?>&text=<?= rawurlencode($pesanWA) ?>" target="_blank" class="btn btn-sm btn-success rounded-pill px-3 py-1 shadow-sm">
+                                            <i class="bi bi-whatsapp me-1"></i> Ingatkan
+                                        </a>
+                                    <?php else: ?>
+                                        <span class="text-muted small fst-italic">Tanpa Kontak</span>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+<?php endif; ?>
 
 <script>
 function filterStatusKelas(status, btn) {
