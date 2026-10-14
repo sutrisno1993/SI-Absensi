@@ -17,16 +17,18 @@
     <?php
         $currentHost = $_SERVER['HTTP_HOST'] ?? '';
         $currentUrl  = current_url();
-        $isThemeNekasi = (
-            str_contains(strtolower($currentHost), 'nekasi') ||
-            str_contains(strtolower($currentUrl), 'nekasi') ||
-            (isset($_GET['theme']) && strtolower($_GET['theme']) === 'hijau')
+        $isThemeHijau = (
+            str_contains(strtolower($currentHost), 'smk11maret') ||
+            str_contains(strtolower($currentUrl), 'smk11maret') ||
+            str_contains(strtolower($currentHost), 'localhost') ||
+            str_contains(strtolower($currentHost), '127.0.0.1') ||
+            (!isset($_GET['theme']) || strtolower($_GET['theme']) !== 'indigo')
         );
     ?>
 
     <style>
         :root {
-            <?php if ($isThemeNekasi): ?>
+            <?php if ($isThemeHijau): ?>
                 --bg-body: #02120b;
                 --bg-card: #08281b;
                 --bg-card-header: #0c3323;

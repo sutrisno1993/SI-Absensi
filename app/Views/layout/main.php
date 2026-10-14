@@ -6,13 +6,16 @@
     <?php
         $currentHost = $_SERVER['HTTP_HOST'] ?? '';
         $currentUrl  = current_url();
-        $isThemeNekasi = (
-            str_contains(strtolower($currentHost), 'nekasi') ||
-            str_contains(strtolower($currentUrl), 'nekasi') ||
-            (isset($_GET['theme']) && strtolower($_GET['theme']) === 'hijau')
+        // Tema Hijau Tua untuk presensi.smk11maret.id, smk11maret.id, atau default
+        $isThemeHijau = (
+            str_contains(strtolower($currentHost), 'smk11maret') ||
+            str_contains(strtolower($currentUrl), 'smk11maret') ||
+            str_contains(strtolower($currentHost), 'localhost') ||
+            str_contains(strtolower($currentHost), '127.0.0.1') ||
+            (!isset($_GET['theme']) || strtolower($_GET['theme']) !== 'indigo')
         );
     ?>
-    <title><?= esc($title ?? 'SI-ABSEN') ?> - <?= $isThemeNekasi ? 'SMK 11 Maret Nekasi' : 'Sistem Informasi Presensi & Pembinaan' ?></title>
+    <title><?= esc($title ?? 'SI-ABSEN') ?> - <?= $isThemeHijau ? 'SMK 11 Maret' : 'Sistem Informasi Presensi & Pembinaan' ?></title>
     
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -25,9 +28,9 @@
     
     <style>
         :root {
-            <?php if ($isThemeNekasi): ?>
+            <?php if ($isThemeHijau): ?>
                 /* ========================================================== */
-                /* TEMA HIJAU TUA (DARK EMERALD / FOREST) - NEKASI            */
+                /* TEMA HIJAU TUA (DARK EMERALD / FOREST) - SMK 11 MARET      */
                 /* ========================================================== */
                 --primary-gradient: linear-gradient(135deg, #10b981 0%, #059669 45%, #047857 100%);
                 --sidebar-width: 260px;
@@ -672,7 +675,7 @@
             color: #64748b !important;
         }
 
-        <?php if ($isThemeNekasi): ?>
+        <?php if ($isThemeHijau): ?>
         /* ========================================================== */
         /* TEMA HIJAU TUA (DARK EMERALD) SPECIFIC COMPONENT STYLING   */
         /* ========================================================== */
@@ -793,7 +796,7 @@
                     </div>
                     <div class="brand-text">
                         <div class="brand-title">SI-ABSEN</div>
-                        <div class="brand-subtitle"><?= $isThemeNekasi ? 'SMK 11 Maret Nekasi' : 'Presensi & Pembinaan' ?></div>
+                        <div class="brand-subtitle"><?= $isThemeHijau ? 'SMK 11 Maret' : 'Presensi & Pembinaan' ?></div>
                     </div>
                 </a>
 
@@ -973,9 +976,9 @@
 
                     <!-- Right Topbar Profile Dropdown -->
                     <div class="d-flex align-items-center gap-2">
-                        <?php if ($isThemeNekasi): ?>
+                        <?php if ($isThemeHijau): ?>
                             <span class="badge rounded-pill px-3 py-2 bg-success bg-opacity-20 border border-success border-opacity-30 text-success d-none d-md-inline-flex align-items-center gap-2 me-1">
-                                <i class="bi bi-shield-fill-check text-success"></i> <span class="fw-semibold">SMK 11 Maret Nekasi</span>
+                                <i class="bi bi-shield-fill-check text-success"></i> <span class="fw-semibold">SMK 11 Maret</span>
                             </span>
                         <?php else: ?>
                             <span class="badge rounded-pill px-3 py-2 bg-black bg-opacity-40 border border-secondary border-opacity-25 text-info d-none d-md-inline-flex align-items-center gap-2 me-1">

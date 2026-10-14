@@ -4,10 +4,12 @@
 <?php
     $currentHost = $_SERVER['HTTP_HOST'] ?? '';
     $currentUrl  = current_url();
-    $isThemeNekasi = (
-        str_contains(strtolower($currentHost), 'nekasi') ||
-        str_contains(strtolower($currentUrl), 'nekasi') ||
-        (isset($_GET['theme']) && strtolower($_GET['theme']) === 'hijau')
+    $isThemeHijau = (
+        str_contains(strtolower($currentHost), 'smk11maret') ||
+        str_contains(strtolower($currentUrl), 'smk11maret') ||
+        str_contains(strtolower($currentHost), 'localhost') ||
+        str_contains(strtolower($currentHost), '127.0.0.1') ||
+        (!isset($_GET['theme']) || strtolower($_GET['theme']) !== 'indigo')
     );
 ?>
 <div class="row justify-content-center align-items-center" style="min-height: 75vh;">
@@ -19,7 +21,7 @@
                     <i class="bi bi-mortarboard-fill fs-2"></i>
                 </div>
                 <h3 class="fw-bold text-dark mb-1">Masuk SI-ABSEN</h3>
-                <p class="text-muted small"><?= $isThemeNekasi ? 'Sistem Presensi SMK 11 Maret Nekasi' : 'Sistem Informasi Presensi & Pembinaan Siswa' ?></p>
+                <p class="text-muted small"><?= $isThemeHijau ? 'Sistem Presensi SMK 11 Maret' : 'Sistem Informasi Presensi & Pembinaan Siswa' ?></p>
             </div>
 
             <?php if (session()->getFlashdata('error')): ?>
