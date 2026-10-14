@@ -1,16 +1,25 @@
 <?= $this->extend('layout/main') ?>
 
 <?= $this->section('content') ?>
+<?php
+    $currentHost = $_SERVER['HTTP_HOST'] ?? '';
+    $currentUrl  = current_url();
+    $isThemeNekasi = (
+        str_contains(strtolower($currentHost), 'nekasi') ||
+        str_contains(strtolower($currentUrl), 'nekasi') ||
+        (isset($_GET['theme']) && strtolower($_GET['theme']) === 'hijau')
+    );
+?>
 <div class="row justify-content-center align-items-center" style="min-height: 75vh;">
     <div class="col-12 col-md-8 col-lg-5 col-xl-4">
         
         <div class="card card-custom p-4 p-md-5 border-0 shadow-lg">
             <div class="text-center mb-4">
-                <div class="d-inline-flex align-items-center justify-content-center bg-primary text-white rounded-4 p-3 shadow-sm mb-3">
+                <div class="d-inline-flex align-items-center justify-content-center text-white rounded-4 p-3 shadow-sm mb-3" style="background: var(--primary-gradient);">
                     <i class="bi bi-mortarboard-fill fs-2"></i>
                 </div>
                 <h3 class="fw-bold text-dark mb-1">Masuk SI-ABSEN</h3>
-                <p class="text-muted small">Sistem Informasi Presensi & Pembinaan Siswa</p>
+                <p class="text-muted small"><?= $isThemeNekasi ? 'Sistem Presensi SMK 11 Maret Nekasi' : 'Sistem Informasi Presensi & Pembinaan Siswa' ?></p>
             </div>
 
             <?php if (session()->getFlashdata('error')): ?>

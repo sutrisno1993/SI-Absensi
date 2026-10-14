@@ -14,13 +14,31 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
+    <?php
+        $currentHost = $_SERVER['HTTP_HOST'] ?? '';
+        $currentUrl  = current_url();
+        $isThemeNekasi = (
+            str_contains(strtolower($currentHost), 'nekasi') ||
+            str_contains(strtolower($currentUrl), 'nekasi') ||
+            (isset($_GET['theme']) && strtolower($_GET['theme']) === 'hijau')
+        );
+    ?>
+
     <style>
         :root {
-            --bg-body: #070a13;
-            --bg-card: #101728;
-            --bg-card-header: #151f36;
-            --border-color: rgba(255, 255, 255, 0.08);
-            --primary-gradient: linear-gradient(135deg, #6366f1 0%, #4f46e5 50%, #3b82f6 100%);
+            <?php if ($isThemeNekasi): ?>
+                --bg-body: #02120b;
+                --bg-card: #08281b;
+                --bg-card-header: #0c3323;
+                --border-color: rgba(52, 211, 153, 0.14);
+                --primary-gradient: linear-gradient(135deg, #10b981 0%, #059669 45%, #047857 100%);
+            <?php else: ?>
+                --bg-body: #070a13;
+                --bg-card: #101728;
+                --bg-card-header: #151f36;
+                --border-color: rgba(255, 255, 255, 0.08);
+                --primary-gradient: linear-gradient(135deg, #6366f1 0%, #4f46e5 50%, #3b82f6 100%);
+            <?php endif; ?>
         }
 
         body {

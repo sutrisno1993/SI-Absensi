@@ -3,7 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= esc($title ?? 'SI-ABSEN') ?> - Sistem Informasi Presensi & Pembinaan</title>
+    <?php
+        $currentHost = $_SERVER['HTTP_HOST'] ?? '';
+        $currentUrl  = current_url();
+        $isThemeNekasi = (
+            str_contains(strtolower($currentHost), 'nekasi') ||
+            str_contains(strtolower($currentUrl), 'nekasi') ||
+            (isset($_GET['theme']) && strtolower($_GET['theme']) === 'hijau')
+        );
+    ?>
+    <title><?= esc($title ?? 'SI-ABSEN') ?> - <?= $isThemeNekasi ? 'SMK 11 Maret Nekasi' : 'Sistem Informasi Presensi & Pembinaan' ?></title>
     
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -16,21 +25,44 @@
     
     <style>
         :root {
-            --primary-gradient: linear-gradient(135deg, #6366f1 0%, #4f46e5 50%, #3b82f6 100%);
-            --sidebar-width: 260px;
-            --brand-color: #6366f1;
-            
-            /* Enhanced Dark Theme Tokens */
-            --bg-body: #070a13;
-            --bg-sidebar: #0d1322;
-            --bg-card: #121a2d;
-            --bg-card-header: #162038;
-            --bg-input: #0a0f1d;
-            --border-color: rgba(255, 255, 255, 0.09);
-            --border-focus: #6366f1;
-            --text-main: #f8fafc;
-            --text-secondary: #94a3b8;
-            --text-muted: #64748b;
+            <?php if ($isThemeNekasi): ?>
+                /* ========================================================== */
+                /* TEMA HIJAU TUA (DARK EMERALD / FOREST) - NEKASI            */
+                /* ========================================================== */
+                --primary-gradient: linear-gradient(135deg, #10b981 0%, #059669 45%, #047857 100%);
+                --sidebar-width: 260px;
+                --brand-color: #10b981;
+                
+                /* Dark Forest Theme Tokens */
+                --bg-body: #02120b;
+                --bg-sidebar: #041c12;
+                --bg-card: #08281b;
+                --bg-card-header: #0c3323;
+                --bg-input: #03170e;
+                --border-color: rgba(52, 211, 153, 0.14);
+                --border-focus: #10b981;
+                --text-main: #f0fdf4;
+                --text-secondary: #a7f3d0;
+                --text-muted: #6ee7b7;
+                --theme-glow: rgba(16, 185, 129, 0.35);
+            <?php else: ?>
+                --primary-gradient: linear-gradient(135deg, #6366f1 0%, #4f46e5 50%, #3b82f6 100%);
+                --sidebar-width: 260px;
+                --brand-color: #6366f1;
+                
+                /* Enhanced Dark Theme Tokens */
+                --bg-body: #070a13;
+                --bg-sidebar: #0d1322;
+                --bg-card: #121a2d;
+                --bg-card-header: #162038;
+                --bg-input: #0a0f1d;
+                --border-color: rgba(255, 255, 255, 0.09);
+                --border-focus: #6366f1;
+                --text-main: #f8fafc;
+                --text-secondary: #94a3b8;
+                --text-muted: #64748b;
+                --theme-glow: rgba(99, 102, 241, 0.35);
+            <?php endif; ?>
         }
 
         html, body {
@@ -640,6 +672,101 @@
             color: #64748b !important;
         }
 
+        <?php if ($isThemeNekasi): ?>
+        /* ========================================================== */
+        /* TEMA HIJAU TUA (DARK EMERALD) SPECIFIC COMPONENT STYLING   */
+        /* ========================================================== */
+        ::-webkit-scrollbar-track {
+            background: #02120b !important;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #0f3d2b !important;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #155e42 !important;
+        }
+        .bg-light {
+            background-color: #03170e !important;
+            color: #a7f3d0 !important;
+        }
+        .bg-body-secondary {
+            background-color: #041c12 !important;
+        }
+        .bg-body-tertiary {
+            background-color: #08281b !important;
+        }
+        .table-custom th {
+            background-color: #0c3323 !important;
+            color: #a7f3d0 !important;
+        }
+        .table-light, .table-light th, .table-light td {
+            background-color: #0c3323 !important;
+            color: #d1fae5 !important;
+        }
+        .table-primary, .table-primary th, .table-primary td {
+            background-color: rgba(16, 185, 129, 0.22) !important;
+            color: #d1fae5 !important;
+        }
+        .table-hover tbody tr:hover td, .table-hover tbody tr:hover th {
+            background-color: rgba(16, 185, 129, 0.08) !important;
+        }
+        .sidebar-link:hover {
+            color: #ffffff;
+            background-color: rgba(16, 185, 129, 0.14);
+        }
+        .sidebar-link:hover i {
+            color: #34d399 !important;
+        }
+        .sidebar-link.active {
+            box-shadow: 0 4px 16px rgba(16, 185, 129, 0.4) !important;
+        }
+        .brand-icon {
+            box-shadow: 0 4px 14px rgba(16, 185, 129, 0.45) !important;
+        }
+        .btn-primary-custom {
+            box-shadow: 0 4px 16px rgba(16, 185, 129, 0.35) !important;
+        }
+        .btn-primary-custom:hover {
+            box-shadow: 0 6px 22px rgba(16, 185, 129, 0.48) !important;
+        }
+        .btn-outline-primary {
+            border-color: #10b981 !important;
+            color: #6ee7b7 !important;
+        }
+        .btn-outline-primary:hover {
+            background-color: #059669 !important;
+            color: #ffffff !important;
+        }
+        .form-control:focus, .form-select:focus {
+            background-color: #02120b !important;
+            border-color: #10b981 !important;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.25) !important;
+        }
+        .form-check-input:checked {
+            background-color: #059669 !important;
+            border-color: #059669 !important;
+        }
+        .modal-content {
+            background-color: #08281b !important;
+        }
+        .modal-header, .modal-footer {
+            background-color: #0c3323 !important;
+        }
+        .dropdown-menu {
+            background-color: #08281b !important;
+        }
+        .dropdown-item:hover {
+            background-color: rgba(16, 185, 129, 0.15) !important;
+        }
+        .app-topbar {
+            background: rgba(4, 28, 18, 0.92) !important;
+        }
+        .sidebar-footer {
+            background: rgba(4, 28, 18, 0.85) !important;
+        }
+        <?php endif; ?>
+
         @media print {
             .app-sidebar, .app-topbar, .sidebar-backdrop, footer {
                 display: none !important;
@@ -666,7 +793,7 @@
                     </div>
                     <div class="brand-text">
                         <div class="brand-title">SI-ABSEN</div>
-                        <div class="brand-subtitle">Presensi & Pembinaan</div>
+                        <div class="brand-subtitle"><?= $isThemeNekasi ? 'SMK 11 Maret Nekasi' : 'Presensi & Pembinaan' ?></div>
                     </div>
                 </a>
 
@@ -846,9 +973,15 @@
 
                     <!-- Right Topbar Profile Dropdown -->
                     <div class="d-flex align-items-center gap-2">
-                        <span class="badge rounded-pill px-3 py-2 bg-black bg-opacity-40 border border-secondary border-opacity-25 text-info d-none d-md-inline-flex align-items-center gap-2 me-1">
-                            <i class="bi bi-moon-stars-fill text-warning"></i> <span class="fw-semibold">Tema Gelap</span>
-                        </span>
+                        <?php if ($isThemeNekasi): ?>
+                            <span class="badge rounded-pill px-3 py-2 bg-success bg-opacity-20 border border-success border-opacity-30 text-success d-none d-md-inline-flex align-items-center gap-2 me-1">
+                                <i class="bi bi-shield-fill-check text-success"></i> <span class="fw-semibold">SMK 11 Maret Nekasi</span>
+                            </span>
+                        <?php else: ?>
+                            <span class="badge rounded-pill px-3 py-2 bg-black bg-opacity-40 border border-secondary border-opacity-25 text-info d-none d-md-inline-flex align-items-center gap-2 me-1">
+                                <i class="bi bi-moon-stars-fill text-warning"></i> <span class="fw-semibold">Tema Gelap</span>
+                            </span>
+                        <?php endif; ?>
                         <div class="text-end d-none d-md-block me-2">
                             <div class="fw-bold text-dark lh-1 small"><?= esc(session()->get('nama_lengkap')) ?></div>
                             <small class="text-muted text-uppercase" style="font-size: 0.68rem;">
