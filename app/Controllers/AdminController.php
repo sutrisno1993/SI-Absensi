@@ -1347,6 +1347,19 @@ class AdminController extends BaseController
             $msg = 'Agenda kalender pendidikan berhasil ditambahkan!';
         }
 
+        // Jika agenda bertipe libur atau bebas absen, otomatis bersihkan presensi yang terlanjur terisi pada rentang tanggal tersebut
+        if ($data['tipe'] === 'libur' || $data['keterangan_kbm'] === 'bebas_absen') {
+            $deleted = $this->absensiModel->deletePresensiByDateRangeAndTarget(
+                $tanggalMulai,
+                $tanggalSelesai,
+                $data['target_tingkat'],
+                $targetKelasId
+            );
+            if ($deleted > 0) {
+                $msg .= " Sebanyak {$deleted} data presensi yang terlanjur terisi pada rentang tanggal tersebut telah otomatis dibersihkan (Set Null).";
+            }
+        }
+
         return redirect()->to('/admin/kalender-pendidikan')->with('success', $msg);
     }
 

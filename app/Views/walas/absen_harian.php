@@ -15,26 +15,58 @@
         <p class="text-muted small mb-0">Kelola dan perbarui presensi harian maupun presensi susulan yang kelewat untuk siswa binaan Anda.</p>
     </div>
     <div class="col-12 col-md-6 mt-3 mt-md-0">
-        <!-- Date Selector Filter -->
-        <form action="<?= site_url('walas/absen') ?>" method="GET" class="d-flex align-items-center justify-content-md-end flex-wrap gap-2">
-            <label for="tanggal" class="form-label mb-0 fw-semibold text-secondary small text-nowrap">Pilih Tanggal:</label>
-            <input type="date" class="form-control form-control-sm w-auto shadow-sm" id="tanggal" name="tanggal" value="<?= esc($tanggal) ?>" max="<?= date('Y-m-d') ?>" onchange="this.form.submit()">
+        <!-- Interactive Date Selector Filter -->
+        <div class="d-flex flex-column align-items-md-end gap-2">
+            <form id="formPilihTanggal" action="<?= site_url('walas/absen') ?>" method="GET" class="d-flex align-items-center justify-content-md-end flex-wrap gap-2">
+                <label for="datepicker-interaktif" class="form-label mb-0 fw-semibold text-secondary small text-nowrap">
+                    <i class="bi bi-calendar3 me-1"></i>Pilih Tanggal:
+                </label>
+                <div class="input-group input-group-sm w-auto shadow-sm">
+                    <input type="text" class="form-control form-control-sm text-center fw-bold bg-dark text-white border-secondary" id="datepicker-interaktif" name="tanggal" value="<?= esc($tanggal) ?>" readonly style="cursor: pointer; min-width: 130px;">
+                    <button class="btn btn-outline-secondary" type="button" id="btnBukaKalender" title="Buka Kalender Interaktif">
+                        <i class="bi bi-calendar-event"></i>
+                    </button>
+                </div>
+                
+                <div class="btn-group btn-group-sm">
+                    <a href="<?= site_url('walas/absen?tanggal=' . date('Y-m-d')) ?>" class="btn btn-outline-secondary <?= $tanggal === date('Y-m-d') ? 'active' : '' ?>">Hari Ini</a>
+                    <a href="<?= site_url('walas/absen?tanggal=' . $yesterday) ?>" class="btn btn-outline-secondary <?= $tanggal === $yesterday ? 'active' : '' ?>">Kemarin</a>
+                    <a href="<?= site_url('walas/absen?tanggal=' . $twoDaysAgo) ?>" class="btn btn-outline-secondary <?= $tanggal === $twoDaysAgo ? 'active' : '' ?>">2 Hari Lalu</a>
+                </div>
+            </form>
             
-            <div class="btn-group btn-group-sm">
-                <a href="<?= site_url('walas/absen?tanggal=' . date('Y-m-d')) ?>" class="btn btn-outline-secondary <?= $tanggal === date('Y-m-d') ? 'active' : '' ?>">Hari Ini</a>
-                <a href="<?= site_url('walas/absen?tanggal=' . $yesterday) ?>" class="btn btn-outline-secondary <?= $tanggal === $yesterday ? 'active' : '' ?>">Kemarin</a>
-                <a href="<?= site_url('walas/absen?tanggal=' . $twoDaysAgo) ?>" class="btn btn-outline-secondary <?= $tanggal === $twoDaysAgo ? 'active' : '' ?>">2 Hari Lalu</a>
+            <!-- Calendar Legend -->
+            <div class="d-flex align-items-center gap-3 small text-muted flex-wrap justify-content-md-end">
+                <span class="d-flex align-items-center gap-1">
+                    <span class="d-inline-block rounded-circle" style="width: 8px; height: 8px; background-color: #ef4444;"></span>
+                    <span style="font-size: 0.75rem;">Merah: Libur / Minggu</span>
+                </span>
+                <span class="d-flex align-items-center gap-1">
+                    <span class="d-inline-block rounded-circle" style="width: 8px; height: 8px; background-color: #f59e0b;"></span>
+                    <span style="font-size: 0.75rem;">Kuning: Acara / Agenda</span>
+                </span>
+                <span class="d-flex align-items-center gap-1">
+                    <span class="d-inline-block rounded-circle" style="width: 8px; height: 8px; background-color: #10b981;"></span>
+                    <span style="font-size: 0.75rem;">Hijau: KBM Aktif</span>
+                </span>
             </div>
-        </form>
+        </div>
     </div>
 </div>
 
 <?php if ($isSunday): ?>
-    <div class="alert alert-info border-0 shadow-sm rounded-3 d-flex align-items-center gap-2 mb-4" role="alert">
-        <i class="bi bi-info-circle-fill fs-4 text-info"></i>
-        <div>
-            <strong>Hari Minggu (Libur Akhir Pekan):</strong> Tanggal ini adalah hari Minggu sehingga kegiatan KBM dan presensi libur otomatis.
+    <div class="alert alert-info border-0 shadow-sm rounded-3 d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4" role="alert">
+        <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-info-circle-fill fs-4 text-info"></i>
+            <div>
+                <strong>Hari Minggu (Libur Akhir Pekan):</strong> Tanggal ini adalah hari Minggu sehingga kegiatan KBM dan presensi libur otomatis.
+            </div>
         </div>
+        <?php if (!empty($hasExistingRecords)): ?>
+            <button type="button" class="btn btn-sm btn-danger rounded-pill px-3 fw-bold shadow-sm" onclick="bukaModalSetNull()">
+                <i class="bi bi-trash3 me-1"></i> Hapus / Set Null Presensi Tanggal Ini
+            </button>
+        <?php endif; ?>
     </div>
 <?php endif; ?>
 
@@ -52,15 +84,22 @@
                 </div>
             </div>
         </div>
-        <?php if (!empty($agendaBebasAbsen['target_kelas_id']) && (int)$agendaBebasAbsen['target_kelas_id'] === (int)$kelas['id']): ?>
-            <form action="<?= site_url('walas/batalkan-libur') ?>" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin membatalkan keterangan libur ini?');" class="m-0">
-                <?= csrf_field() ?>
-                <input type="hidden" name="agenda_id" value="<?= $agendaBebasAbsen['id'] ?>">
-                <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill px-3 fw-semibold">
-                    <i class="bi bi-x-circle me-1"></i> Batalkan Penandaan Libur
+        <div class="d-flex align-items-center gap-2">
+            <?php if (!empty($hasExistingRecords)): ?>
+                <button type="button" class="btn btn-sm btn-danger rounded-pill px-3 fw-bold shadow-sm" onclick="bukaModalSetNull()">
+                    <i class="bi bi-trash3 me-1"></i> Hapus / Set Null Presensi
                 </button>
-            </form>
-        <?php endif; ?>
+            <?php endif; ?>
+            <?php if (!empty($agendaBebasAbsen['target_kelas_id']) && (int)$agendaBebasAbsen['target_kelas_id'] === (int)$kelas['id']): ?>
+                <form action="<?= site_url('walas/batalkan-libur') ?>" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin membatalkan keterangan libur ini?');" class="m-0">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="agenda_id" value="<?= $agendaBebasAbsen['id'] ?>">
+                    <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill px-3 fw-semibold">
+                        <i class="bi bi-x-circle me-1"></i> Batalkan Penandaan Libur
+                    </button>
+                </form>
+            <?php endif; ?>
+        </div>
     </div>
 <?php endif; ?>
 
@@ -86,14 +125,28 @@
                 <span class="badge bg-light text-muted border px-2 py-2">
                     Total Siswa: <?= count($daftarSiswa) ?> Orang
                 </span>
+                <?php if (!empty($hasExistingRecords)): ?>
+                    <span class="badge bg-success bg-opacity-15 text-success border border-success border-opacity-25 px-2 py-2">
+                        <i class="bi bi-check-circle me-1"></i> Sudah Terisi
+                    </span>
+                <?php else: ?>
+                    <span class="badge bg-secondary bg-opacity-15 text-muted border border-secondary border-opacity-25 px-2 py-2">
+                        <i class="bi bi-dash-circle me-1"></i> Belum Diisi (Null)
+                    </span>
+                <?php endif; ?>
             </div>
-            <div class="d-flex align-items-center gap-2">
+            <div class="d-flex align-items-center gap-2 flex-wrap">
                 <button type="button" class="btn btn-sm btn-outline-success fw-semibold rounded-pill px-3" onclick="setSemuaHadir()">
                     <i class="bi bi-check-all me-1"></i> Set Semua Hadir (H)
                 </button>
                 <?php if (empty($agendaBebasAbsen) && !$isSunday): ?>
                     <button type="button" class="btn btn-sm btn-outline-warning text-dark border-warning fw-semibold rounded-pill px-3" onclick="bukaModalTandaiLibur('<?= $tanggal ?>', '<?= date('d F Y', strtotime($tanggal)) ?>')">
                         <i class="bi bi-calendar-event me-1"></i> Tandai Libur / Acara
+                    </button>
+                <?php endif; ?>
+                <?php if (!empty($hasExistingRecords)): ?>
+                    <button type="button" class="btn btn-sm btn-outline-danger fw-semibold rounded-pill px-3 shadow-sm" onclick="bukaModalSetNull()">
+                        <i class="bi bi-trash3 me-1"></i> Hapus / Set Null Presensi
                     </button>
                 <?php endif; ?>
             </div>
@@ -247,10 +300,208 @@
         </div>
     </div>
 </div>
+
+<!-- Modal Konfirmasi Hapus / Set Null Presensi -->
+<div class="modal fade" id="modalSetNull" tabindex="-1" aria-labelledby="modalSetNullLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content card-custom border-0 shadow-lg rounded-4 overflow-hidden">
+            <div class="modal-header bg-danger bg-opacity-25 border-bottom border-danger border-opacity-25 py-3">
+                <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2" id="modalSetNullLabel">
+                    <i class="bi bi-trash3-fill text-danger"></i>
+                    <span>Hapus / Set Null Presensi Kelas</span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="<?= site_url('walas/absen/hapus') ?>" method="POST">
+                <?= csrf_field() ?>
+                <input type="hidden" name="tanggal" value="<?= esc($tanggal) ?>">
+                
+                <div class="modal-body p-4">
+                    <div class="alert alert-danger bg-danger bg-opacity-10 border border-danger border-opacity-25 rounded-3 mb-3 d-flex align-items-start gap-2">
+                        <i class="bi bi-exclamation-triangle-fill text-danger fs-5 mt-1 flex-shrink-0"></i>
+                        <div class="small text-light">
+                            Tindakan ini akan <strong>menghapus seluruh record kehadiran siswa kelas <?= esc($kelas['nama_kelas']) ?></strong> untuk tanggal ini dari database.
+                        </div>
+                    </div>
+
+                    <div class="card bg-dark border-secondary p-3 mb-3 rounded-3">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted small">Kelas:</span>
+                            <span class="fw-bold text-white"><?= esc($kelas['nama_kelas']) ?></span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted small">Tanggal Presensi:</span>
+                            <span class="fw-bold text-danger"><?= date('d F Y', strtotime($tanggal)) ?></span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted small">Total Siswa Terdaftar:</span>
+                            <span class="fw-bold text-white"><?= count($daftarSiswa) ?> Siswa</span>
+                        </div>
+                    </div>
+
+                    <p class="small text-muted mb-0">
+                        Setelah dihapus, status presensi siswa akan kembali menjadi <strong>NULL (kosong / belum diisi)</strong>, tidak akan dihitung hadir maupun alpa pada rekapitulasi, dan dokumentasi foto sesi kelas pada tanggal ini juga akan dibersihkan.
+                    </p>
+                </div>
+
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-secondary rounded-pill px-3" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-danger fw-bold rounded-pill px-4 shadow">
+                        <i class="bi bi-trash3 me-1"></i> Ya, Hapus & Set Null
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 <?= $this->endSection() ?>
 
 <?= $this->section('scripts') ?>
+<!-- Flatpickr CSS & JS (CDN) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://npmcdn.com/flatpickr/dist/l10n/id.js"></script>
+
+<style>
+/* Styling Flatpickr Dark Emerald / Hijau Tua Theme */
+.flatpickr-calendar {
+    background: #08281b !important;
+    border: 1px solid rgba(52, 211, 153, 0.25) !important;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.7) !important;
+    border-radius: 16px !important;
+    overflow: hidden;
+    color: #f0fdf4 !important;
+    font-family: 'Plus Jakarta Sans', sans-serif !important;
+}
+.flatpickr-calendar .flatpickr-months {
+    background: #0c3323 !important;
+    border-bottom: 1px solid rgba(52, 211, 153, 0.15);
+    padding: 6px 0;
+}
+.flatpickr-calendar .flatpickr-month,
+.flatpickr-calendar .flatpickr-current-month,
+.flatpickr-calendar .flatpickr-current-month .cur-month,
+.flatpickr-calendar .flatpickr-current-month input.cur-year {
+    color: #f0fdf4 !important;
+    font-weight: 700;
+}
+.flatpickr-calendar span.flatpickr-weekday {
+    color: #6ee7b7 !important;
+    font-weight: 600;
+}
+.flatpickr-calendar .flatpickr-prev-month svg,
+.flatpickr-calendar .flatpickr-next-month svg {
+    fill: #10b981 !important;
+}
+.flatpickr-day {
+    color: #f0fdf4 !important;
+    border-radius: 8px !important;
+    height: 36px !important;
+    line-height: 36px !important;
+    position: relative;
+    font-size: 13px;
+    font-weight: 500;
+}
+.flatpickr-day:hover {
+    background: rgba(16, 185, 129, 0.25) !important;
+}
+.flatpickr-day.selected {
+    background: #10b981 !important;
+    border-color: #10b981 !important;
+    color: #ffffff !important;
+    font-weight: 800 !important;
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.6) !important;
+}
+
+/* 🔴 Hari Libur & Hari Minggu (Merah) */
+.flatpickr-day.fp-day-libur {
+    color: #f87171 !important;
+    font-weight: 700 !important;
+    background-color: rgba(239, 68, 68, 0.18) !important;
+    border: 1px dashed rgba(239, 68, 68, 0.5) !important;
+}
+.flatpickr-day.fp-day-libur::after {
+    content: '';
+    position: absolute;
+    bottom: 3px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background-color: #ef4444;
+}
+
+/* 🟡 Hari Acara / Agenda Kegiatan (Kuning) */
+.flatpickr-day.fp-day-acara {
+    color: #fbbf24 !important;
+    font-weight: 700 !important;
+    background-color: rgba(245, 158, 11, 0.18) !important;
+    border: 1px dashed rgba(245, 158, 11, 0.5) !important;
+}
+.flatpickr-day.fp-day-acara::after {
+    content: '';
+    position: absolute;
+    bottom: 3px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background-color: #f59e0b;
+}
+
+.flatpickr-day.fp-day-libur.selected,
+.flatpickr-day.fp-day-acara.selected {
+    background: #10b981 !important;
+    color: #ffffff !important;
+    border: 1px solid #10b981 !important;
+}
+</style>
+
 <script>
+    const kalenderEvents = <?= json_encode($kalenderEvents ?? []) ?>;
+
+    // Inisialisasi Flatpickr Interaktif
+    const fpTanggal = flatpickr("#datepicker-interaktif", {
+        locale: "id",
+        dateFormat: "Y-m-d",
+        defaultDate: "<?= esc($tanggal) ?>",
+        maxDate: "<?= date('Y-m-d', strtotime('+30 days')) ?>",
+        onDayCreate: function(dObj, dStr, fp, dayElem) {
+            const dateStr = fp.formatDate(dayElem.dateObj, "Y-m-d");
+            const dayOfWeek = dayElem.dateObj.getDay(); // 0 is Sunday
+
+            // 1. Hari Minggu -> Merah
+            if (dayOfWeek === 0) {
+                dayElem.classList.add('fp-day-libur', 'fp-day-minggu');
+                dayElem.title = "Hari Minggu (Libur)";
+                return;
+            }
+
+            // 2. Cek apakah ada agenda di kalender
+            const event = kalenderEvents.find(e => dateStr >= e.tanggal_mulai && dateStr <= e.tanggal_selesai);
+            if (event) {
+                if (event.tipe === 'libur' || event.keterangan_kbm === 'bebas_absen') {
+                    dayElem.classList.add('fp-day-libur');
+                    dayElem.title = "Libur: " + event.nama_agenda;
+                } else {
+                    dayElem.classList.add('fp-day-acara');
+                    dayElem.title = "Acara: " + event.nama_agenda;
+                }
+            }
+        },
+        onChange: function(selectedDates, dateStr, instance) {
+            if (dateStr) {
+                window.location.href = "<?= site_url('walas/absen') ?>?tanggal=" + dateStr;
+            }
+        }
+    });
+
+    document.getElementById('btnBukaKalender')?.addEventListener('click', function() {
+        fpTanggal.open();
+    });
+
     function setSemuaHadir() {
         document.querySelectorAll('.radio-h').forEach(function(radio) {
             radio.checked = true;
@@ -262,6 +513,11 @@
         document.getElementById('libur_tanggal_formatted').value = formatted;
         document.getElementById('nama_agenda').value = '';
         var modal = new bootstrap.Modal(document.getElementById('modalTandaiLibur'));
+        modal.show();
+    }
+
+    function bukaModalSetNull() {
+        var modal = new bootstrap.Modal(document.getElementById('modalSetNull'));
         modal.show();
     }
 

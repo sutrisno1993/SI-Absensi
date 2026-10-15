@@ -5,6 +5,7 @@
 $liveUrl = site_url('live-presensi/' . esc($sesiKelas['share_token']));
 $namaWalasStr = $walas ? $walas['nama_guru'] : 'Wali Kelas';
 $hasFoto = !empty($sesiKelas['foto_kelas']) && file_exists(FCPATH . $sesiKelas['foto_kelas']);
+$isLocked = ($isSunday || !empty($agendaBebasAbsen));
 ?>
 
 <div class="row mb-4 align-items-center">
@@ -25,23 +26,13 @@ $hasFoto = !empty($sesiKelas['foto_kelas']) && file_exists(FCPATH . $sesiKelas['
     </div>
 </div>
 
-<?php if ((int)date('w', strtotime($tanggal)) === 0): ?>
-    <div class="alert border-0 shadow-sm rounded-4 d-flex align-items-center gap-3 mb-4 text-success" style="background-color: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3) !important;">
-        <i class="bi bi-cup-hot-fill fs-2 text-success"></i>
+<?php if ($isLocked): ?>
+    <div class="alert border-0 shadow-sm rounded-4 d-flex align-items-center gap-3 mb-4 text-danger" style="background-color: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.35) !important;">
+        <i class="bi bi-lock-fill fs-2 text-danger"></i>
         <div>
-            <strong class="fs-6 text-white">Hari Ini Hari Minggu (Libur Akhir Pekan)</strong>
-            <div class="small text-light text-opacity-75">Kegiatan Belajar Mengajar (KBM) reguler libur. Presensi harian tidak diwajibkan kecuali kelas Anda ada agenda atau acara khusus sekolah.</div>
-        </div>
-    </div>
-<?php endif; ?>
-
-<?php if (!empty($agendaBebasAbsen)): ?>
-    <div class="alert border-0 shadow-sm rounded-4 d-flex align-items-center gap-3 mb-4 text-warning" style="background-color: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3) !important;">
-        <i class="bi bi-calendar2-check-fill fs-2 text-warning"></i>
-        <div>
-            <strong class="fs-6 text-white">Hari Bebas Presensi: <?= esc($agendaBebasAbsen['nama_agenda']) ?></strong>
+            <strong class="fs-6 text-white">🔒 Presensi Hari Ini Dikunci (Hari Libur / Bebas Presensi)</strong>
             <div class="small text-light text-opacity-75">
-                Tanggal ini tercatat di kalender sekolah / ditandai sebagai agenda khusus (<?= esc($agendaBebasAbsen['tipe'] === 'libur' ? 'Libur Sekolah' : 'Acara Non-KBM') ?>). Presensi harian tidak diwajibkan (bebas absen / auto null).
+                Hari ini adalah <?= $isSunday ? 'Hari Minggu (Libur Akhir Pekan)' : ('agenda sekolah: <strong>' . esc($agendaBebasAbsen['nama_agenda']) . '</strong> (' . ucfirst($agendaBebasAbsen['tipe']) . ')') ?>. Presensi harian dinonaktifkan secara otomatis. Siswa / PJ Kelas tidak diperkenankan mengisi presensi pada hari libur / acara.
             </div>
         </div>
     </div>
@@ -169,9 +160,15 @@ $hasFoto = !empty($sesiKelas['foto_kelas']) && file_exists(FCPATH . $sesiKelas['
                 </span>
             </div>
             <div class="d-flex gap-2">
-                <button type="button" class="btn btn-sm btn-outline-success fw-semibold rounded-pill px-3" onclick="setSemuaHadir()">
-                    <i class="bi bi-check-all me-1"></i> Set Semua Hadir (H)
-                </button>
+                <?php if (!$isLocked): ?>
+                    <button type="button" class="btn btn-sm btn-outline-success fw-semibold rounded-pill px-3" onclick="setSemuaHadir()">
+                        <i class="bi bi-check-all me-1"></i> Set Semua Hadir (H)
+                    </button>
+                <?php else: ?>
+                    <span class="badge bg-danger bg-opacity-20 text-danger border border-danger border-opacity-30 px-3 py-2 rounded-pill">
+                        <i class="bi bi-lock-fill me-1"></i> Presensi Dikunci (Hari Libur / Acara)
+                    </span>
+                <?php endif; ?>
             </div>
         </div>
 
@@ -205,35 +202,35 @@ $hasFoto = !empty($sesiKelas['foto_kelas']) && file_exists(FCPATH . $sesiKelas['
                                     <div class="d-inline-flex gap-2">
                                         <!-- Hadir -->
                                         <label>
-                                            <input type="radio" class="status-pill-radio radio-h" name="absensi[<?= $s['siswa_id'] ?>][status]" value="H" <?= $currentStatus === 'H' ? 'checked' : '' ?>>
+                                            <input type="radio" class="status-pill-radio radio-h" name="absensi[<?= $s['siswa_id'] ?>][status]" value="H" <?= $currentStatus === 'H' ? 'checked' : '' ?> <?= $isLocked ? 'disabled' : '' ?>>
                                             <span class="status-label" title="Hadir">H</span>
                                         </label>
                                         <!-- Sakit -->
                                         <label>
-                                            <input type="radio" class="status-pill-radio" name="absensi[<?= $s['siswa_id'] ?>][status]" value="S" <?= $currentStatus === 'S' ? 'checked' : '' ?>>
+                                            <input type="radio" class="status-pill-radio" name="absensi[<?= $s['siswa_id'] ?>][status]" value="S" <?= $currentStatus === 'S' ? 'checked' : '' ?> <?= $isLocked ? 'disabled' : '' ?>>
                                             <span class="status-label" title="Sakit">S</span>
                                         </label>
                                         <!-- Izin -->
                                         <label>
-                                            <input type="radio" class="status-pill-radio" name="absensi[<?= $s['siswa_id'] ?>][status]" value="I" <?= $currentStatus === 'I' ? 'checked' : '' ?>>
+                                            <input type="radio" class="status-pill-radio" name="absensi[<?= $s['siswa_id'] ?>][status]" value="I" <?= $currentStatus === 'I' ? 'checked' : '' ?> <?= $isLocked ? 'disabled' : '' ?>>
                                             <span class="status-label" title="Izin">I</span>
                                         </label>
                                         <!-- Alpa -->
                                         <label>
-                                            <input type="radio" class="status-pill-radio" name="absensi[<?= $s['siswa_id'] ?>][status]" value="A" <?= $currentStatus === 'A' ? 'checked' : '' ?>>
+                                            <input type="radio" class="status-pill-radio" name="absensi[<?= $s['siswa_id'] ?>][status]" value="A" <?= $currentStatus === 'A' ? 'checked' : '' ?> <?= $isLocked ? 'disabled' : '' ?>>
                                             <span class="status-label" title="Alpa / Tanpa Keterangan">A</span>
                                         </label>
                                         <?php if (! empty($isKelas2)): ?>
                                         <!-- PKL (Khusus Kelas 2 / XI) -->
                                         <label>
-                                            <input type="radio" class="status-pill-radio" name="absensi[<?= $s['siswa_id'] ?>][status]" value="P" <?= $currentStatus === 'P' ? 'checked' : '' ?>>
+                                            <input type="radio" class="status-pill-radio" name="absensi[<?= $s['siswa_id'] ?>][status]" value="P" <?= $currentStatus === 'P' ? 'checked' : '' ?> <?= $isLocked ? 'disabled' : '' ?>>
                                             <span class="status-label" title="Praktik Kerja Lapangan (PKL / Magang)">P</span>
                                         </label>
                                         <?php endif; ?>
                                     </div>
                                 </td>
                                 <td>
-                                    <input type="text" class="form-control form-control-sm bg-dark text-light border-secondary" name="absensi[<?= $s['siswa_id'] ?>][keterangan]" value="<?= esc($s['keterangan'] ?? '') ?>" placeholder="Misal: Demam, Surat dokter...">
+                                    <input type="text" class="form-control form-control-sm bg-dark text-light border-secondary" name="absensi[<?= $s['siswa_id'] ?>][keterangan]" value="<?= esc($s['keterangan'] ?? '') ?>" placeholder="Misal: Demam, Surat dokter..." <?= $isLocked ? 'disabled' : '' ?>>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -247,9 +244,15 @@ $hasFoto = !empty($sesiKelas['foto_kelas']) && file_exists(FCPATH . $sesiKelas['
                 <span class="text-muted small">
                     <i class="bi bi-info-circle me-1"></i> Setelah menyimpan, link realtime otomatis diperbarui secara instan.
                 </span>
-                <button type="submit" class="btn btn-primary-custom px-4 py-2 rounded-pill fw-semibold">
-                    <i class="bi bi-cloud-check-fill me-2"></i> Simpan Data Presensi
-                </button>
+                <?php if ($isLocked): ?>
+                    <button type="button" class="btn btn-secondary px-4 py-2 rounded-pill fw-semibold" disabled>
+                        <i class="bi bi-lock-fill me-2"></i> Presensi Dikunci (Hari Libur / Acara)
+                    </button>
+                <?php else: ?>
+                    <button type="submit" class="btn btn-primary-custom px-4 py-2 rounded-pill fw-semibold">
+                        <i class="bi bi-cloud-check-fill me-2"></i> Simpan Data Presensi
+                    </button>
+                <?php endif; ?>
             </div>
         <?php endif; ?>
     </div>
@@ -347,6 +350,12 @@ $hasFoto = !empty($sesiKelas['foto_kelas']) && file_exists(FCPATH . $sesiKelas['
 
     // Validasi: semua siswa wajib punya status kehadiran sebelum simpan
     document.querySelector('form[action*="pj/simpan"]').addEventListener('submit', function(e) {
+        if (<?= $isLocked ? 'true' : 'false' ?>) {
+            e.preventDefault();
+            alert('Presensi Ditolak: Hari ini adalah hari libur / acara sekolah. Presensi dikunci untuk siswa.');
+            return false;
+        }
+
         const rows = document.querySelectorAll('form[action*="pj/simpan"] tbody tr');
         let belumDiisi = [];
 

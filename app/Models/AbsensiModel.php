@@ -650,5 +650,129 @@ class AbsensiModel extends Model
 
         return $result;
     }
+
+    /**
+     * Menghapus seluruh data presensi suatu kelas pada tanggal tertentu (Set Null / Reset).
+     * Juga membersihkan sesi dan berkas foto dokumentasi kelas harian jika ada.
+     */
+    public function deletePresensiByDateAndKelas(string $tanggal, int $kelasId): int
+    {
+        $db = $this->db;
+
+        // Ambil ID seluruh siswa di kelas ini
+        $siswaIds = $db->table('siswa')
+            ->select('id')
+            ->where('kelas_id', $kelasId)
+            ->get()
+            ->getResultArray();
+
+        $deletedCount = 0;
+        if (!empty($siswaIds)) {
+            $ids = array_column($siswaIds, 'id');
+            $db->table('absensi')
+                ->where('tanggal', $tanggal)
+                ->whereIn('siswa_id', $ids)
+                ->delete();
+            $deletedCount = $db->affectedRows();
+        }
+
+        // Hapus juga catatan & foto di presensi_kelas_harian
+        $pkh = $db->table('presensi_kelas_harian')
+            ->where('kelas_id', $kelasId)
+            ->where('tanggal', $tanggal)
+            ->get()
+            ->getRowArray();
+
+        if ($pkh) {
+            if (!empty($pkh['foto_kelas'])) {
+                $filePath = FCPATH . ltrim($pkh['foto_kelas'], '/\\');
+                if (is_file($filePath)) {
+                    @unlink($filePath);
+                }
+            }
+            $db->table('presensi_kelas_harian')
+                ->where('id', $pkh['id'])
+                ->delete();
+        }
+
+        return $deletedCount;
+    }
+
+    /**
+     * Menghapus presensi pada rentang tanggal untuk target tingkat tertentu atau seluruh sekolah.
+     * Digunakan saat admin atau walas menetapkan hari libur / acara bebas KBM.
+     */
+    public function deletePresensiByDateRangeAndTarget(string $startDate, string $endDate, string $targetTingkat = 'semua', ?int $targetKelasId = null): int
+    {
+        $db = $this->db;
+
+        $siswaBuilder = $db->table('siswa s')
+                           ->select('s.id, s.kelas_id')
+                           ->join('kelas k', 'k.id = s.kelas_id');
+
+        if (!empty($targetKelasId)) {
+            $siswaBuilder->where('s.kelas_id', $targetKelasId);
+        } elseif (!empty($targetTingkat) && $targetTingkat !== 'semua') {
+            if ($targetTingkat === 'XII') {
+                $siswaBuilder->groupStart()
+                             ->like('k.nama_kelas', 'XII', 'after')
+                             ->orLike('k.nama_kelas', '12', 'after')
+                             ->groupEnd();
+            } elseif ($targetTingkat === 'XI') {
+                $siswaBuilder->groupStart()
+                             ->like('k.nama_kelas', 'XI', 'after')
+                             ->orLike('k.nama_kelas', '11', 'after')
+                             ->groupEnd();
+            } elseif ($targetTingkat === 'X') {
+                $siswaBuilder->groupStart()
+                             ->like('k.nama_kelas', 'X', 'after')
+                             ->orLike('k.nama_kelas', '10', 'after')
+                             ->groupEnd();
+            }
+        }
+
+        $siswaList = $siswaBuilder->get()->getResultArray();
+        if (empty($siswaList)) {
+            return 0;
+        }
+
+        $siswaIds = array_column($siswaList, 'id');
+        $kelasIds = array_values(array_unique(array_column($siswaList, 'kelas_id')));
+
+        // Hapus absensi
+        $db->table('absensi')
+           ->where('tanggal >=', $startDate)
+           ->where('tanggal <=', $endDate)
+           ->whereIn('siswa_id', $siswaIds)
+           ->delete();
+        $deletedCount = $db->affectedRows();
+
+        // Hapus foto dokumentasi dan catatan presensi_kelas_harian pada rentang tanggal
+        if (!empty($kelasIds)) {
+            $pkhList = $db->table('presensi_kelas_harian')
+                          ->where('tanggal >=', $startDate)
+                          ->where('tanggal <=', $endDate)
+                          ->whereIn('kelas_id', $kelasIds)
+                          ->get()
+                          ->getResultArray();
+
+            foreach ($pkhList as $pkh) {
+                if (!empty($pkh['foto_kelas'])) {
+                    $filePath = FCPATH . ltrim($pkh['foto_kelas'], '/\\');
+                    if (is_file($filePath)) {
+                        @unlink($filePath);
+                    }
+                }
+            }
+
+            $db->table('presensi_kelas_harian')
+               ->where('tanggal >=', $startDate)
+               ->where('tanggal <=', $endDate)
+               ->whereIn('kelas_id', $kelasIds)
+               ->delete();
+        }
+
+        return $deletedCount;
+    }
 }
 

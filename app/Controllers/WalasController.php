@@ -98,14 +98,19 @@ class WalasController extends BaseController
         $agendaBebasAbsen = $kalenderModel->isHariBebasAbsen($tanggal, $tingkat, $kelasId);
         $isSunday         = ((int)date('w', strtotime($tanggal)) === 0);
 
+        $hasExistingRecords = !empty(array_filter($daftarSiswa, static fn($s) => !empty($s['absensi_id'])));
+        $kalenderEvents     = $kalenderModel->getEventsForPicker($tingkat, $kelasId);
+
         return view('walas/absen_harian', [
-            'title'            => 'Input Presensi Kelas ' . $kelas['nama_kelas'],
-            'kelas'            => $kelas,
-            'tanggal'          => $tanggal,
-            'daftarSiswa'      => $daftarSiswa,
-            'isKelas2'         => $isKelas2,
-            'agendaBebasAbsen' => $agendaBebasAbsen,
-            'isSunday'         => $isSunday,
+            'title'              => 'Input Presensi Kelas ' . $kelas['nama_kelas'],
+            'kelas'              => $kelas,
+            'tanggal'            => $tanggal,
+            'daftarSiswa'        => $daftarSiswa,
+            'isKelas2'           => $isKelas2,
+            'agendaBebasAbsen'   => $agendaBebasAbsen,
+            'isSunday'           => $isSunday,
+            'hasExistingRecords' => $hasExistingRecords,
+            'kalenderEvents'     => $kalenderEvents,
         ]);
     }
 
@@ -157,6 +162,30 @@ class WalasController extends BaseController
         }
 
         return redirect()->back()->with('error', 'Gagal menyimpan presensi. Silakan coba lagi.');
+    }
+
+    /**
+     * Hapus / Set Null seluruh data presensi kelas untuk tanggal tertentu
+     */
+    public function hapusPresensiTanggal()
+    {
+        $walasId = (int)$this->session->get('ref_id');
+        $kelas   = $this->kelasModel->getKelasByWalas($walasId);
+
+        if (! $kelas) {
+            return redirect()->to('/walas')->with('error', 'Anda tidak memiliki kelas ampu.');
+        }
+
+        $kelasId = (int)$kelas['id'];
+        $tanggal = $this->request->getPost('tanggal');
+
+        if (empty($tanggal) || ! strtotime($tanggal)) {
+            return redirect()->back()->with('error', 'Tanggal tidak valid.');
+        }
+
+        $deletedCount = $this->absensiModel->deletePresensiByDateAndKelas($tanggal, $kelasId);
+
+        return redirect()->to('/walas/absen?tanggal=' . $tanggal)->with('success', 'Presensi kelas ' . esc($kelas['nama_kelas']) . ' untuk tanggal ' . date('d/m/Y', strtotime($tanggal)) . ' berhasil dihapus (Set Null). ' . ($deletedCount > 0 ? "Sebanyak {$deletedCount} data presensi siswa dikembalikan ke status awal (belum diisi)." : 'Data presensi sudah bersih (tidak ada yang tersimpan).'));
     }
 
     /**
@@ -557,6 +586,9 @@ class WalasController extends BaseController
             'keterangan'      => 'Ditandai oleh ' . $walasName . ' (' . $kelas['nama_kelas'] . ')',
         ]);
 
+        // Bersihkan data presensi yang mungkin terlanjur diisi pada tanggal ini
+        $deleted = $this->absensiModel->deletePresensiByDateRangeAndTarget($tanggal, $tanggal, $targetTingkat, $targetKelasId);
+
         // 2. Simpan catatan di sesi presensi_kelas_harian
         $presensiKelasModel = new \App\Models\PresensiKelasHarianModel();
         $sesi = $presensiKelasModel->getOrCreateForToday($kelasId, $tanggal);
@@ -564,7 +596,8 @@ class WalasController extends BaseController
             'catatan' => ($tipe === 'libur' ? 'Libur: ' : 'Acara: ') . $namaAgenda,
         ]);
 
-        return redirect()->back()->with('success', "Tanggal " . date('d F Y', strtotime($tanggal)) . " berhasil ditandai sebagai: {$namaAgenda}. Presensi dinonaktifkan (bebas absen) dan notifikasi terlewat telah diselesaikan.");
+        $cleanNotice = $deleted > 0 ? " ({$deleted} data presensi yang terlanjur terisi telah otomatis dibersihkan)" : "";
+        return redirect()->back()->with('success', "Tanggal " . date('d F Y', strtotime($tanggal)) . " berhasil ditandai sebagai: {$namaAgenda}. Presensi dinonaktifkan (bebas absen){$cleanNotice}.");
     }
 
     /**

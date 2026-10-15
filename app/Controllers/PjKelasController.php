@@ -97,13 +97,28 @@ class PjKelasController extends BaseController
             return redirect()->back()->with('error', 'Tidak ada data presensi yang dikirimkan.');
         }
 
+        $kelas = $this->kelasModel->find($kelasId);
+        if (!$kelas) {
+            return redirect()->back()->with('error', 'Kelas tidak ditemukan.');
+        }
+
+        // Proteksi Hari Libur & Hari Minggu: Siswa / PJ tidak boleh mengisi presensi
+        $kalenderModel    = new \App\Models\KalenderPendidikanModel();
+        $tingkat          = $this->absensiModel->getTingkatKelas($kelas['nama_kelas']);
+        $agendaBebasAbsen = $kalenderModel->isHariBebasAbsen($tanggal, $tingkat, $kelasId);
+        $isSunday         = ((int)date('w', strtotime($tanggal)) === 0);
+
+        if ($isSunday || !empty($agendaBebasAbsen)) {
+            $reason = $isSunday ? 'Hari Minggu adalah hari libur akhir pekan.' : ('Hari ini adalah agenda ' . esc($agendaBebasAbsen['nama_agenda']) . ' (Bebas KBM).');
+            return redirect()->back()->with('error', 'Pengisian Presensi Ditolak: ' . $reason . ' Siswa tidak diperkenankan mengisi presensi.');
+        }
+
         // Ambil daftar valid siswa_id aktif pada kelas ini (Security Data Isolation)
         $validSiswaList = array_map('intval', $this->siswaModel->where('kelas_id', $kelasId)->where('status', 'Aktif')->findColumn('id') ?: []);
 
         // Status yang diizinkan (tambahkan P jika Kelas 2 / XI)
         $allowedStatuses = ['H', 'S', 'I', 'A'];
-        $kelas = $this->kelasModel->find($kelasId);
-        if ($kelas && $this->absensiModel->isKelas2($kelas['nama_kelas'])) {
+        if ($this->absensiModel->isKelas2($kelas['nama_kelas'])) {
             $allowedStatuses[] = 'P';
         }
 

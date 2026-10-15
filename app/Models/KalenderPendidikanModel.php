@@ -80,4 +80,26 @@ class KalenderPendidikanModel extends Model
                     ->groupEnd()
                     ->findAll();
     }
+
+    /**
+     * Ambil agenda kalender yang relevan untuk date picker suatu kelas/tingkat
+     */
+    public function getEventsForPicker(?string $tingkat = null, ?int $kelasId = null): array
+    {
+        $builder = $this->builder();
+        $builder->select('id, nama_agenda, tanggal_mulai, tanggal_selesai, tipe, keterangan_kbm, target_tingkat, target_kelas_id');
+        $builder->groupStart()
+                ->where('target_tingkat', 'semua');
+
+        if (!empty($tingkat)) {
+            $builder->orWhere('target_tingkat', $tingkat);
+        }
+        if (!empty($kelasId)) {
+            $builder->orWhere('target_kelas_id', $kelasId);
+        }
+        $builder->groupEnd();
+
+        return $builder->orderBy('tanggal_mulai', 'ASC')->get()->getResultArray();
+    }
 }
+

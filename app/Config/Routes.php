@@ -104,6 +104,7 @@ $routes->group('walas', ['filter' => ['auth', 'role:walas', 'force_change_pwd']]
     $routes->get('/', 'WalasController::index');
     $routes->get('absen', 'WalasController::absen');
     $routes->post('absen/simpan', 'WalasController::simpanAbsen');
+    $routes->post('absen/hapus', 'WalasController::hapusPresensiTanggal');
     $routes->get('rekap', 'WalasController::rekap');
     $routes->get('rekap/export-excel', 'WalasController::exportRekapExcel');
     $routes->get('export-rekap-excel', 'WalasController::exportRekapExcel');
