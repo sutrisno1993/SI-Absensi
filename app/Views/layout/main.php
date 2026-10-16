@@ -4,18 +4,32 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <?php
-        $currentHost = $_SERVER['HTTP_HOST'] ?? '';
-        $currentUrl  = current_url();
-        // Tema Hijau Tua untuk presensi.smk11maret.id, smk11maret.id, atau default
-        $isThemeHijau = (
-            str_contains(strtolower($currentHost), 'smk11maret') ||
-            str_contains(strtolower($currentUrl), 'smk11maret') ||
-            str_contains(strtolower($currentHost), 'localhost') ||
-            str_contains(strtolower($currentHost), '127.0.0.1') ||
-            (!isset($_GET['theme']) || strtolower($_GET['theme']) !== 'indigo')
-        );
+        $currentHost = strtolower($_SERVER['HTTP_HOST'] ?? '');
+        $currentUrl  = strtolower(current_url());
+        $themeParam  = strtolower($_GET['theme'] ?? '');
+
+        // Logika penentuan tema:
+        // - Domain osis (misal osis.smk11maret.id) menggunakan tema Indigo / Modern Navy Blue
+        // - Domain presensi (misal presensi.smk11maret.id / nekasi) menggunakan tema Hijau Tua (Dark Emerald)
+        if ($themeParam === 'indigo' || $themeParam === 'blue') {
+            $isThemeHijau = false;
+        } elseif ($themeParam === 'hijau' || $themeParam === 'emerald' || $themeParam === 'green') {
+            $isThemeHijau = true;
+        } elseif (str_contains($currentHost, 'osis') || str_contains($currentUrl, 'osis')) {
+            $isThemeHijau = false;
+        } elseif (
+            str_contains($currentHost, 'presensi') ||
+            str_contains($currentUrl, 'presensi') ||
+            str_contains($currentHost, 'nekasi') ||
+            str_contains($currentUrl, 'nekasi')
+        ) {
+            $isThemeHijau = true;
+        } else {
+            // Default di localhost atau domain utama: tema hijau tua presensi
+            $isThemeHijau = true;
+        }
     ?>
-    <title><?= esc($title ?? 'SI-ABSEN') ?> - <?= $isThemeHijau ? 'SMK 11 Maret' : 'Sistem Informasi Presensi & Pembinaan' ?></title>
+    <title><?= esc($title ?? 'SI-ABSEN') ?> - <?= $isThemeHijau ? 'SMK 11 Maret' : (str_contains($currentHost, 'osis') ? 'OSIS SMK 11 Maret' : 'Sistem Informasi Presensi & Pembinaan') ?></title>
     
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -796,7 +810,7 @@
                     </div>
                     <div class="brand-text">
                         <div class="brand-title">SI-ABSEN</div>
-                        <div class="brand-subtitle"><?= $isThemeHijau ? 'SMK 11 Maret' : 'Presensi & Pembinaan' ?></div>
+                        <div class="brand-subtitle"><?= $isThemeHijau ? 'SMK 11 Maret' : (str_contains($currentHost, 'osis') ? 'OSIS SMK 11 Maret' : 'Presensi & Pembinaan') ?></div>
                     </div>
                 </a>
 
@@ -995,6 +1009,10 @@
                         <?php if ($isThemeHijau): ?>
                             <span class="badge rounded-pill px-3 py-2 bg-success bg-opacity-20 border border-success border-opacity-30 text-success d-none d-md-inline-flex align-items-center gap-2 me-1">
                                 <i class="bi bi-shield-fill-check text-success"></i> <span class="fw-semibold">SMK 11 Maret</span>
+                            </span>
+                        <?php elseif (str_contains($currentHost, 'osis')): ?>
+                            <span class="badge rounded-pill px-3 py-2 bg-primary bg-opacity-20 border border-primary border-opacity-30 text-primary d-none d-md-inline-flex align-items-center gap-2 me-1">
+                                <i class="bi bi-people-fill text-primary"></i> <span class="fw-semibold">OSIS SMK 11 Maret</span>
                             </span>
                         <?php else: ?>
                             <span class="badge rounded-pill px-3 py-2 bg-black bg-opacity-40 border border-secondary border-opacity-25 text-info d-none d-md-inline-flex align-items-center gap-2 me-1">

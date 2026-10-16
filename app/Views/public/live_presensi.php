@@ -15,15 +15,26 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
     <?php
-        $currentHost = $_SERVER['HTTP_HOST'] ?? '';
-        $currentUrl  = current_url();
-        $isThemeHijau = (
-            str_contains(strtolower($currentHost), 'smk11maret') ||
-            str_contains(strtolower($currentUrl), 'smk11maret') ||
-            str_contains(strtolower($currentHost), 'localhost') ||
-            str_contains(strtolower($currentHost), '127.0.0.1') ||
-            (!isset($_GET['theme']) || strtolower($_GET['theme']) !== 'indigo')
-        );
+        $currentHost = strtolower($_SERVER['HTTP_HOST'] ?? '');
+        $currentUrl  = strtolower(current_url());
+        $themeParam  = strtolower($_GET['theme'] ?? '');
+
+        if ($themeParam === 'indigo' || $themeParam === 'blue') {
+            $isThemeHijau = false;
+        } elseif ($themeParam === 'hijau' || $themeParam === 'emerald' || $themeParam === 'green') {
+            $isThemeHijau = true;
+        } elseif (str_contains($currentHost, 'osis') || str_contains($currentUrl, 'osis')) {
+            $isThemeHijau = false;
+        } elseif (
+            str_contains($currentHost, 'presensi') ||
+            str_contains($currentUrl, 'presensi') ||
+            str_contains($currentHost, 'nekasi') ||
+            str_contains($currentUrl, 'nekasi')
+        ) {
+            $isThemeHijau = true;
+        } else {
+            $isThemeHijau = true;
+        }
     ?>
 
     <style>
