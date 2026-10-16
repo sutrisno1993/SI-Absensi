@@ -82,14 +82,17 @@
 <!-- SECTION: MONITORING STATUS PENGISIAN PRESENSI HARI INI  -->
 <!-- ======================================================= -->
 <?php
-$cntBelum    = 0;
-$cntSebagian = 0;
-$cntLengkap  = 0;
-$totalKls    = count($statusPresensiKelasHariIni ?? []);
+$cntBelum      = 0;
+$cntSebagian   = 0;
+$cntLengkap    = 0;
+$cntBebasAbsen = 0;
+$totalKls      = count($statusPresensiKelasHariIni ?? []);
 
 if (! empty($statusPresensiKelasHariIni)) {
     foreach ($statusPresensiKelasHariIni as $stk) {
-        if ($stk['status_input'] === 'belum') {
+        if ($stk['status_input'] === 'bebas_absen') {
+            $cntBebasAbsen++;
+        } elseif ($stk['status_input'] === 'belum') {
             $cntBelum++;
         } elseif ($stk['status_input'] === 'sebagian') {
             $cntSebagian++;
@@ -125,9 +128,14 @@ $labelHariIni = ($hariIndo[date('l', $tglObj)] ?? date('l', $tglObj)) . ', ' . d
                 <button type="button" class="btn btn-sm btn-outline-warning filter-btn-status <?= (!$isMinggu && $cntBelum === 0 && $cntSebagian > 0) ? 'active bg-warning text-dark' : '' ?>" onclick="filterStatusKelas('sebagian', this)">
                     <i class="bi bi-hourglass-split me-1"></i> Sebagian (<?= $cntSebagian ?>)
                 </button>
-                <button type="button" class="btn btn-sm btn-outline-success filter-btn-status <?= (!$isMinggu && $cntBelum === 0 && $cntSebagian === 0) ? 'active bg-success text-white' : '' ?>" onclick="filterStatusKelas('lengkap', this)">
+                <button type="button" class="btn btn-sm btn-outline-success filter-btn-status <?= (!$isMinggu && $cntBelum === 0 && $cntSebagian === 0 && $cntLengkap > 0) ? 'active bg-success text-white' : '' ?>" onclick="filterStatusKelas('lengkap', this)">
                     <i class="bi bi-check-circle-fill me-1"></i> Sudah Lengkap (<?= $cntLengkap ?>)
                 </button>
+                <?php if ($cntBebasAbsen > 0): ?>
+                    <button type="button" class="btn btn-sm btn-outline-info filter-btn-status <?= (!$isMinggu && $cntBelum === 0 && $cntSebagian === 0 && $cntLengkap === 0 && $cntBebasAbsen > 0) ? 'active bg-info text-white' : '' ?>" onclick="filterStatusKelas('bebas_absen', this)">
+                        <i class="bi bi-calendar2-check me-1"></i> Bebas Absen (<?= $cntBebasAbsen ?>)
+                    </button>
+                <?php endif; ?>
                 <button type="button" class="btn btn-sm btn-outline-secondary filter-btn-status <?= $isMinggu ? 'active bg-secondary text-white' : '' ?>" onclick="filterStatusKelas('all', this)">
                     Semua Kelas (<?= $totalKls ?>)
                 </button>
@@ -135,7 +143,7 @@ $labelHariIni = ($hariIndo[date('l', $tglObj)] ?? date('l', $tglObj)) . ', ' . d
         </div>
     </div>
 
-    <!-- Alert status hari Minggu atau hari aktif belajar -->
+    <!-- Alert status hari Minggu atau hari aktif belajar / agenda bebas absen -->
     <?php if ($isMinggu): ?>
         <div class="px-3 pt-2">
             <div class="alert alert-success bg-success bg-opacity-10 border-success border-opacity-25 d-flex align-items-center p-3 rounded-3 mb-0 gap-3">
@@ -146,6 +154,40 @@ $labelHariIni = ($hariIndo[date('l', $tglObj)] ?? date('l', $tglObj)) . ', ' . d
                 </div>
             </div>
         </div>
+    <?php elseif (! empty($agendaHariIni)): ?>
+        <?php 
+            $namaAgendaList = implode(', ', array_unique(array_column($agendaHariIni, 'nama_agenda')));
+        ?>
+        <div class="px-3 pt-2">
+            <div class="alert alert-info bg-info bg-opacity-10 border-info border-opacity-25 d-flex flex-wrap align-items-center justify-content-between p-3 rounded-3 mb-0 gap-2">
+                <div class="d-flex align-items-center gap-3">
+                    <i class="bi bi-calendar2-check-fill fs-3 text-info"></i>
+                    <div>
+                        <strong class="text-info">Hari Bebas Presensi: <?= esc($namaAgendaList) ?></strong>
+                        <div class="small text-muted">
+                            Sesuai Kalender Pendidikan, presensi siswa untuk rombel terkait dinonaktifkan / bebas absen. Sistem tidak menuntut pengisian presensi hari ini.
+                        </div>
+                    </div>
+                </div>
+                <a href="<?= site_url('admin/kalender-pendidikan') ?>" class="btn btn-sm btn-outline-info rounded-pill px-3">
+                    <i class="bi bi-calendar3 me-1"></i> Lihat Kalender
+                </a>
+            </div>
+        </div>
+        <?php if ($cntBelum > 0): ?>
+            <div class="px-3 pt-2">
+                <div class="alert alert-danger bg-danger bg-opacity-10 border-danger border-opacity-25 d-flex flex-wrap align-items-center justify-content-between p-3 rounded-3 mb-0 gap-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="bi bi-bell-fill fs-4 text-danger"></i>
+                        <div>
+                            <strong class="text-danger">Peringatan:</strong>
+                            <span class="text-dark small ms-1">Ada <strong><?= $cntBelum ?> rombel kelas</strong> yang tetap wajib masuk namun hari ini belum menginput presensi siswa sama sekali!</span>
+                        </div>
+                    </div>
+                    <small class="text-muted fst-italic"><i class="bi bi-info-circle me-1"></i>Klik tombol WhatsApp di baris kelas untuk mengingatkan Wali Kelas</small>
+                </div>
+            </div>
+        <?php endif; ?>
     <?php elseif ($cntBelum > 0): ?>
         <div class="px-3 pt-2">
             <div class="alert alert-danger bg-danger bg-opacity-10 border-danger border-opacity-25 d-flex flex-wrap align-items-center justify-content-between p-3 rounded-3 mb-0 gap-2">
@@ -227,7 +269,14 @@ $labelHariIni = ($hariIndo[date('l', $tglObj)] ?? date('l', $tglObj)) . ', ' . d
                                 <?php endif; ?>
                             </td>
                             <td class="text-center">
-                                <?php if ($st['status_input'] === 'belum'): ?>
+                                <?php if ($st['status_input'] === 'bebas_absen'): ?>
+                                    <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-30 px-3 py-2 rounded-pill">
+                                        <i class="bi bi-calendar2-check me-1"></i> Bebas Absen
+                                    </span>
+                                    <?php if (!empty($st['agenda_bebas_absen'])): ?>
+                                        <small class="d-block text-muted mt-1" style="font-size: 0.72rem;"><?= esc($st['agenda_bebas_absen']) ?></small>
+                                    <?php endif; ?>
+                                <?php elseif ($st['status_input'] === 'belum'): ?>
                                     <span class="badge bg-danger px-3 py-2 rounded-pill shadow-sm">
                                         <i class="bi bi-x-circle-fill me-1"></i> Belum Input
                                     </span>
@@ -250,7 +299,11 @@ $labelHariIni = ($hariIndo[date('l', $tglObj)] ?? date('l', $tglObj)) . ', ' . d
                             </td>
                             <td class="text-center">
                                 <div class="d-flex align-items-center justify-content-center gap-1">
-                                    <?php if ($st['status_input'] === 'belum' && ! empty($noHpClean)): ?>
+                                    <?php if ($st['status_input'] === 'bebas_absen'): ?>
+                                        <span class="badge bg-secondary bg-opacity-10 text-muted border border-secondary border-opacity-25 px-2 py-1 small">
+                                            <i class="bi bi-check2-all me-1"></i> Tidak Perlu Absen
+                                        </span>
+                                    <?php elseif ($st['status_input'] === 'belum' && ! empty($noHpClean)): ?>
                                         <a href="https://api.whatsapp.com/send?phone=<?= $noHpClean ?>&text=<?= rawurlencode($pesanWA) ?>" target="_blank" class="btn btn-sm btn-success rounded-pill px-2 py-1" title="Kirim Pengingat WhatsApp ke Walas">
                                             <i class="bi bi-whatsapp me-1"></i> Ingatkan WA
                                         </a>
@@ -351,7 +404,7 @@ $labelHariIni = ($hariIndo[date('l', $tglObj)] ?? date('l', $tglObj)) . ', ' . d
 <script>
 function filterStatusKelas(status, btn) {
     document.querySelectorAll('.filter-btn-status').forEach(b => {
-        b.classList.remove('active', 'bg-danger', 'bg-warning', 'bg-success', 'bg-secondary', 'text-white', 'text-dark');
+        b.classList.remove('active', 'bg-danger', 'bg-warning', 'bg-success', 'bg-info', 'bg-secondary', 'text-white', 'text-dark');
     });
 
     btn.classList.add('active');
@@ -361,6 +414,8 @@ function filterStatusKelas(status, btn) {
         btn.classList.add('bg-warning', 'text-dark');
     } else if (status === 'lengkap') {
         btn.classList.add('bg-success', 'text-white');
+    } else if (status === 'bebas_absen') {
+        btn.classList.add('bg-info', 'text-white');
     } else {
         btn.classList.add('bg-secondary', 'text-white');
     }
@@ -380,12 +435,17 @@ function filterStatusKelas(status, btn) {
     });
 }
 
-// Inisialisasi awal jika ada kelas belum input, langsung filter belum input
+// Inisialisasi awal filter
 document.addEventListener('DOMContentLoaded', function() {
     <?php if ($cntBelum > 0): ?>
         const belumBtn = document.querySelector('.filter-btn-status.btn-outline-danger');
         if (belumBtn) {
             filterStatusKelas('belum', belumBtn);
+        }
+    <?php elseif ($cntBebasAbsen > 0 && $cntBelum === 0 && $cntSebagian === 0 && $cntLengkap === 0): ?>
+        const bebasBtn = document.querySelector('.filter-btn-status.btn-outline-info');
+        if (bebasBtn) {
+            filterStatusKelas('bebas_absen', bebasBtn);
         }
     <?php endif; ?>
 });

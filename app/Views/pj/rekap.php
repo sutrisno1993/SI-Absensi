@@ -11,13 +11,27 @@
         </p>
     </div>
     <div class="col-12 col-md-6 mt-3 mt-md-0">
-        <!-- Filter Periode (Bulan / Semester / Semua Waktu) -->
+        <!-- Filter Periode (Bulan / Semester / Rentang Tanggal / Semua Waktu) -->
         <form action="<?= site_url('pj/rekap') ?>" method="GET" class="d-flex flex-wrap align-items-center justify-content-md-end gap-2">
             <select name="periode" class="form-select form-select-sm w-auto shadow-sm" id="selectPjPeriode" onchange="togglePjFilter()">
                 <option value="bulan" <?= $periode === 'bulan' ? 'selected' : '' ?>>Per Bulan</option>
                 <option value="semester" <?= $periode === 'semester' ? 'selected' : '' ?>>Per Semester</option>
+                <option value="rentang" <?= $periode === 'rentang' ? 'selected' : '' ?>>Rentang Tanggal (Kustom)</option>
                 <option value="all" <?= $periode === 'all' ? 'selected' : '' ?>>Semua Waktu</option>
             </select>
+
+            <!-- Group Rentang Tanggal -->
+            <div id="groupPjRentang" class="d-flex align-items-center gap-1 <?= $periode !== 'rentang' ? 'd-none' : '' ?>">
+                <div class="input-group input-group-sm w-auto shadow-sm">
+                    <span class="input-group-text bg-white text-muted"><i class="bi bi-calendar-event me-1"></i>Dari</span>
+                    <input type="date" name="start_date" class="form-control form-control-sm" value="<?= esc($startDate ?? date('Y-m-01')) ?>">
+                </div>
+                <span class="text-muted small">s/d</span>
+                <div class="input-group input-group-sm w-auto shadow-sm">
+                    <span class="input-group-text bg-white text-muted"><i class="bi bi-calendar-check me-1"></i>Sampai</span>
+                    <input type="date" name="end_date" class="form-control form-control-sm" value="<?= esc($endDate ?? date('Y-m-d')) ?>">
+                </div>
+            </div>
 
             <div id="groupPjBulan" class="<?= $periode !== 'bulan' ? 'd-none' : '' ?>">
                 <select name="bulan" class="form-select form-select-sm w-auto shadow-sm">
@@ -41,7 +55,7 @@
                 </select>
             </div>
 
-            <div id="groupPjTahun" class="<?= $periode === 'all' ? 'd-none' : '' ?>">
+            <div id="groupPjTahun" class="<?= ($periode === 'all' || $periode === 'rentang') ? 'd-none' : '' ?>">
                 <select name="tahun" class="form-select form-select-sm w-auto shadow-sm">
                     <?php 
                     $currY = (int)date('Y');
@@ -108,19 +122,28 @@ function togglePjFilter() {
     const gb = document.getElementById('groupPjBulan');
     const gs = document.getElementById('groupPjSemester');
     const gt = document.getElementById('groupPjTahun');
+    const gr = document.getElementById('groupPjRentang');
 
     if (val === 'bulan') {
         gb.classList.remove('d-none');
         gs.classList.add('d-none');
         gt.classList.remove('d-none');
+        if (gr) gr.classList.add('d-none');
     } else if (val === 'semester') {
         gb.classList.add('d-none');
         gs.classList.remove('d-none');
         gt.classList.remove('d-none');
+        if (gr) gr.classList.add('d-none');
+    } else if (val === 'rentang') {
+        gb.classList.add('d-none');
+        gs.classList.add('d-none');
+        gt.classList.add('d-none');
+        if (gr) gr.classList.remove('d-none');
     } else {
         gb.classList.add('d-none');
         gs.classList.add('d-none');
         gt.classList.add('d-none');
+        if (gr) gr.classList.add('d-none');
     }
 }
 </script>

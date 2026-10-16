@@ -26,7 +26,7 @@ class KelasModel extends Model
      */
     public function getKelasWithWalas()
     {
-        return $this->select('kelas.*, guru.nama_guru, guru.nip')
+        return $this->select('kelas.*, guru.nama_guru as nama_walas, guru.nama_guru, guru.nip')
                     ->join('guru', 'guru.id = kelas.walas_id', 'left')
                     ->findAll();
     }

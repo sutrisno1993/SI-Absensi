@@ -6,6 +6,7 @@ use App\Models\AbsensiModel;
 use App\Models\KelasModel;
 use App\Models\PembinaanModel;
 use App\Models\SiswaModel;
+use App\Models\KeterlambatanSiswaModel;
 use App\Services\ExportService;
 
 class WalasController extends BaseController
@@ -14,15 +15,17 @@ class WalasController extends BaseController
     protected $kelasModel;
     protected $pembinaanModel;
     protected $siswaModel;
+    protected $keterlambatanSiswaModel;
     protected $exportService;
 
     public function __construct()
     {
-        $this->absensiModel   = new AbsensiModel();
-        $this->kelasModel     = new KelasModel();
-        $this->pembinaanModel = new PembinaanModel();
-        $this->siswaModel     = new SiswaModel();
-        $this->exportService  = new ExportService();
+        $this->absensiModel            = new AbsensiModel();
+        $this->kelasModel              = new KelasModel();
+        $this->pembinaanModel          = new PembinaanModel();
+        $this->siswaModel              = new SiswaModel();
+        $this->keterlambatanSiswaModel = new KeterlambatanSiswaModel();
+        $this->exportService           = new ExportService();
     }
 
     /**
@@ -42,30 +45,37 @@ class WalasController extends BaseController
         $kelasId = (int)$kelas['id'];
 
         // 1. Siswa yang memicu alert pembinaan (Alpa > 3)
-        $siswaBermasalah = $this->absensiModel->getSiswaPerluPembinaan($kelasId, 3);
+        $siswaBermasalahAlpa = $this->absensiModel->getSiswaPerluPembinaan($kelasId, 3);
 
-        // 2. Rekap absensi kelas bulan ini
+        // 2. Alert Keterlambatan: Siswa Terlambat > 3x (Wajib Pembinaan) & Terlambat > 1x (Dilaporkan ke Walas)
+        $rekapTerlambatBulanIni = $this->keterlambatanSiswaModel->getRekapKeterlambatanKelas($kelasId, date('Y-m-01'), date('Y-m-t'));
+        $siswaTerlambatBina  = array_values(array_filter($rekapTerlambatBulanIni, static fn($r) => (int)$r['total_terlambat'] > 3));
+        $siswaTerlambatLapor = array_values(array_filter($rekapTerlambatBulanIni, static fn($r) => (int)$r['total_terlambat'] > 1 && (int)$r['total_terlambat'] <= 3));
+
+        // 3. Rekap absensi kelas bulan ini
         $bulanSekarang = date('m');
         $tahunSekarang = date('Y');
         $rekapBulanIni = $this->absensiModel->getRekapKelas($kelasId, $bulanSekarang, $tahunSekarang);
 
-        // 3. Riwayat pembinaan terakhir
+        // 4. Riwayat pembinaan terakhir
         $riwayatPembinaan = $this->pembinaanModel->getRiwayatPembinaan($walasId, $kelasId);
 
-        // 4. Daftar seluruh siswa aktif untuk dropdown form bina siswa
+        // 5. Daftar seluruh siswa aktif untuk dropdown form bina siswa
         $daftarSiswa = $this->siswaModel->getSiswaAktifByKelas($kelasId);
 
-        // 5. Cek hari aktif belajar yang kelewat / belum diinput presensinya
+        // 6. Cek hari aktif belajar yang kelewat / belum diinput presensinya
         $tanggalKelewat = $this->absensiModel->getTanggalKelewatKelas($kelasId);
 
         return view('walas/dashboard', [
-            'title'            => 'Dashboard Wali Kelas',
-            'kelas'            => $kelas,
-            'siswaBermasalah'  => $siswaBermasalah,
-            'rekapBulanIni'    => $rekapBulanIni,
-            'riwayatPembinaan' => $riwayatPembinaan,
-            'daftarSiswa'      => $daftarSiswa,
-            'tanggalKelewat'   => $tanggalKelewat,
+            'title'                 => 'Dashboard Wali Kelas',
+            'kelas'                 => $kelas,
+            'siswaBermasalah'       => $siswaBermasalahAlpa,
+            'siswaTerlambatBina'    => $siswaTerlambatBina,
+            'siswaTerlambatLapor'   => $siswaTerlambatLapor,
+            'rekapBulanIni'         => $rekapBulanIni,
+            'riwayatPembinaan'      => $riwayatPembinaan,
+            'daftarSiswa'           => $daftarSiswa,
+            'tanggalKelewat'        => $tanggalKelewat,
         ]);
     }
 
@@ -165,7 +175,7 @@ class WalasController extends BaseController
     }
 
     /**
-     * Hapus / Set Null seluruh data presensi kelas untuk tanggal tertentu
+     * Kosongkan seluruh data presensi kelas untuk tanggal tertentu
      */
     public function hapusPresensiTanggal()
     {
@@ -185,7 +195,7 @@ class WalasController extends BaseController
 
         $deletedCount = $this->absensiModel->deletePresensiByDateAndKelas($tanggal, $kelasId);
 
-        return redirect()->to('/walas/absen?tanggal=' . $tanggal)->with('success', 'Presensi kelas ' . esc($kelas['nama_kelas']) . ' untuk tanggal ' . date('d/m/Y', strtotime($tanggal)) . ' berhasil dihapus (Set Null). ' . ($deletedCount > 0 ? "Sebanyak {$deletedCount} data presensi siswa dikembalikan ke status awal (belum diisi)." : 'Data presensi sudah bersih (tidak ada yang tersimpan).'));
+        return redirect()->to('/walas/absen?tanggal=' . $tanggal)->with('success', 'Presensi kelas ' . esc($kelas['nama_kelas']) . ' untuk tanggal ' . date('d/m/Y', strtotime($tanggal)) . ' berhasil dikosongkan. ' . ($deletedCount > 0 ? "Sebanyak {$deletedCount} data presensi siswa berhasil dibersihkan dan dikembalikan ke status awal (belum diisi)." : 'Data presensi sudah dalam kondisi kosong.'));
     }
 
     /**
@@ -200,13 +210,17 @@ class WalasController extends BaseController
             return redirect()->to('/walas')->with('error', 'Anda belum ditugaskan mengampu kelas.');
         }
 
-        $periode  = $this->request->getGet('periode') ?: ($this->request->getGet('semester') ? 'semester' : 'bulan');
-        $bulan    = (int)($this->request->getGet('bulan') ?: date('n'));
-        $tahun    = (int)($this->request->getGet('tahun') ?: date('Y'));
-        $semester = $this->request->getGet('semester') ?: (date('n') >= 7 ? 'ganjil' : 'genap');
+        $periode   = $this->request->getGet('periode') ?: ($this->request->getGet('semester') ? 'semester' : 'bulan');
+        $bulan     = (int)($this->request->getGet('bulan') ?: date('n'));
+        $tahun     = (int)($this->request->getGet('tahun') ?: date('Y'));
+        $semester  = $this->request->getGet('semester') ?: (date('n') >= 7 ? 'ganjil' : 'genap');
+        $startDate = $this->request->getGet('start_date') ?: date('Y-m-01');
+        $endDate   = $this->request->getGet('end_date') ?: date('Y-m-d');
 
-        [$startDate, $endDate, $labelPeriode] = $this->absensiModel->resolveDateFilter($periode, $bulan, $tahun, $semester);
-        $rekap = $this->absensiModel->getRekapKelas((int)$kelas['id'], $startDate, $endDate);
+        [$startDateResolved, $endDateResolved, $labelPeriode] = $this->absensiModel->resolveDateFilter(
+            $periode, $bulan, $tahun, $semester, null, $startDate, $endDate
+        );
+        $rekap = $this->absensiModel->getRekapKelas((int)$kelas['id'], $startDateResolved, $endDateResolved);
 
         return view('walas/rekap', [
             'title'        => 'Rekap Presensi Kelas ' . $kelas['nama_kelas'],
@@ -215,6 +229,8 @@ class WalasController extends BaseController
             'bulan'        => $bulan,
             'tahun'        => $tahun,
             'semester'     => $semester,
+            'startDate'    => $startDate,
+            'endDate'      => $endDate,
             'labelPeriode' => $labelPeriode,
             'rekap'        => $rekap,
         ]);
@@ -305,13 +321,17 @@ class WalasController extends BaseController
             return redirect()->to('/walas')->with('error', 'Anda tidak memiliki kelas ampu.');
         }
 
-        $periode  = $this->request->getGet('periode') ?: ($this->request->getGet('semester') ? 'semester' : ($this->request->getGet('bulan') ? 'bulan' : 'all'));
-        $bulan    = (int)($this->request->getGet('bulan') ?: date('n'));
-        $tahun    = (int)($this->request->getGet('tahun') ?: date('Y'));
-        $semester = $this->request->getGet('semester') ?: (date('n') >= 7 ? 'ganjil' : 'genap');
+        $periode   = $this->request->getGet('periode') ?: ($this->request->getGet('semester') ? 'semester' : ($this->request->getGet('bulan') ? 'bulan' : 'all'));
+        $bulan     = (int)($this->request->getGet('bulan') ?: date('n'));
+        $tahun     = (int)($this->request->getGet('tahun') ?: date('Y'));
+        $semester  = $this->request->getGet('semester') ?: (date('n') >= 7 ? 'ganjil' : 'genap');
+        $startDate = $this->request->getGet('start_date') ?: date('Y-m-01');
+        $endDate   = $this->request->getGet('end_date') ?: date('Y-m-d');
 
-        [$startDate, $endDate, $labelPeriode] = $this->absensiModel->resolveDateFilter($periode, $bulan, $tahun, $semester);
-        $rekapSiswa = $this->absensiModel->getRekapKelas((int)$kelas['id'], $startDate, $endDate);
+        [$startDateResolved, $endDateResolved, $labelPeriode] = $this->absensiModel->resolveDateFilter(
+            $periode, $bulan, $tahun, $semester, null, $startDate, $endDate
+        );
+        $rekapSiswa = $this->absensiModel->getRekapKelas((int)$kelas['id'], $startDateResolved, $endDateResolved);
         $this->exportService->exportKelasPresensi($kelas, $rekapSiswa, $labelPeriode);
     }
 
@@ -622,5 +642,395 @@ class WalasController extends BaseController
         }
 
         return redirect()->back()->with('error', 'Agenda libur tidak dapat dibatalkan atau bukan dibuat khusus untuk kelas/tingkat Anda.');
+    }
+
+    /**
+     * Halaman Kelola Data Siswa Kelas (Aktif / Nonaktifkan)
+     */
+    public function siswa()
+    {
+        $walasId = (int)$this->session->get('ref_id');
+        $kelas   = $this->kelasModel->getKelasByWalas($walasId);
+
+        if (! $kelas) {
+            return view('walas/no_kelas', [
+                'title' => 'Data Siswa Kelas',
+            ]);
+        }
+
+        $kelasId = (int)$kelas['id'];
+        $status  = $this->request->getGet('status');
+
+        $builder = $this->siswaModel->where('kelas_id', $kelasId);
+        if (!empty($status) && in_array($status, ['Aktif', 'Nonaktif'])) {
+            $builder->where('status', $status);
+        }
+        $siswaList = $builder->orderBy('nama_siswa', 'ASC')->findAll();
+
+        $totalSemua    = $this->siswaModel->where('kelas_id', $kelasId)->countAllResults();
+        $totalAktif    = $this->siswaModel->where('kelas_id', $kelasId)->where('status', 'Aktif')->countAllResults();
+        $totalNonaktif = $this->siswaModel->where('kelas_id', $kelasId)->where('status', 'Nonaktif')->countAllResults();
+
+        return view('walas/siswa', [
+            'title'          => 'Data Siswa Kelas ' . $kelas['nama_kelas'],
+            'kelas'          => $kelas,
+            'siswaList'      => $siswaList,
+            'selectedStatus' => $status,
+            'totalSemua'     => $totalSemua,
+            'totalAktif'     => $totalAktif,
+            'totalNonaktif'  => $totalNonaktif,
+        ]);
+    }
+
+    /**
+     * Toggle Cepat Status Siswa (Aktif <-> Nonaktif) oleh Wali Kelas
+     * Siswa yang di-nonaktifkan tidak akan dimunculkan di daftar presensi siswa/kelas
+     */
+    public function toggleStatusSiswa($siswaId)
+    {
+        $walasId = (int)$this->session->get('ref_id');
+        $kelas   = $this->kelasModel->getKelasByWalas($walasId);
+
+        if (! $kelas) {
+            return redirect()->to('/walas')->with('error', 'Anda tidak memiliki kelas ampu.');
+        }
+
+        $kelasId = (int)$kelas['id'];
+        $siswa   = $this->siswaModel->where('id', (int)$siswaId)
+                                    ->where('kelas_id', $kelasId)
+                                    ->first();
+
+        if (! $siswa) {
+            return redirect()->back()->with('error', 'Data siswa tidak ditemukan di kelas Anda.');
+        }
+
+        $newStatus = ($siswa['status'] === 'Aktif') ? 'Nonaktif' : 'Aktif';
+        $updateData = ['status' => $newStatus];
+        if ($newStatus === 'Aktif') {
+            // Jika diaktifkan kembali, kita tetap bisa simpan riwayat atau reset
+            // Kita biarkan catatan lama tersimpan atau tetap ada
+        }
+        $this->siswaModel->update($siswa['id'], $updateData);
+
+        $pesan = ($newStatus === 'Nonaktif')
+            ? "Siswa \"{$siswa['nama_siswa']}\" berhasil dinonaktifkan. Siswa ini tidak akan muncul lagi di lembar pengisian presensi kelas."
+            : "Siswa \"{$siswa['nama_siswa']}\" berhasil diaktifkan kembali dan akan muncul di lembar presensi kelas.";
+
+        return redirect()->back()->with('success', $pesan);
+    }
+
+    /**
+     * Nyatakan Siswa Keluar / Pindah / Mengundurkan Diri (Status Nonaktif + Wajib/Opsional Surat Pendukung)
+     */
+    public function nonaktifkanSiswa()
+    {
+        $walasId = (int)$this->session->get('ref_id');
+        $kelas   = $this->kelasModel->getKelasByWalas($walasId);
+
+        if (! $kelas) {
+            return redirect()->to('/walas')->with('error', 'Anda tidak memiliki kelas ampu.');
+        }
+
+        $siswaId = (int)$this->request->getPost('siswa_id');
+        $siswa   = $this->siswaModel->where('id', $siswaId)
+                                    ->where('kelas_id', (int)$kelas['id'])
+                                    ->first();
+
+        if (! $siswa) {
+            return redirect()->back()->with('error', 'Data siswa tidak ditemukan di kelas Anda.');
+        }
+
+        $alasan   = $this->request->getPost('alasan_nonaktif') ?: 'pindah_sekolah';
+        $tanggal  = $this->request->getPost('tanggal_nonaktif') ?: date('Y-m-d');
+        $catatan  = trim($this->request->getPost('catatan_nonaktif') ?: '');
+        $fileSurat = $this->request->getFile('file_surat');
+
+        $fileName = $siswa['file_surat_nonaktif'] ?? null;
+        if ($fileSurat && $fileSurat->isValid() && ! $fileSurat->hasMoved()) {
+            $ext = strtolower($fileSurat->getClientExtension());
+            if (! in_array($ext, ['pdf', 'jpg', 'jpeg', 'png'], true)) {
+                return redirect()->back()->withInput()->with('error', 'Format berkas surat pendukung harus PDF, JPG, atau PNG.');
+            }
+            if ($fileSurat->getSizeByUnit('mb') > 4) {
+                return redirect()->back()->withInput()->with('error', 'Ukuran berkas surat maksimal 4MB.');
+            }
+
+            $uploadPath = FCPATH . 'uploads/mutasi/';
+            if (! is_dir($uploadPath)) {
+                mkdir($uploadPath, 0755, true);
+            }
+
+            $fileName = 'mutasi_' . $siswa['id'] . '_' . date('Ymd_His') . '.' . $ext;
+            $fileSurat->move($uploadPath, $fileName);
+        }
+
+        $this->siswaModel->update($siswa['id'], [
+            'status'              => 'Nonaktif',
+            'alasan_nonaktif'     => $alasan,
+            'tanggal_nonaktif'    => $tanggal,
+            'catatan_nonaktif'    => $catatan,
+            'file_surat_nonaktif' => $fileName,
+        ]);
+
+        $alasanText = ucwords(str_replace('_', ' ', $alasan));
+        return redirect()->back()->with('success', "Siswa \"{$siswa['nama_siswa']}\" berhasil dinyatakan {$alasanText} (Status: Nonaktif).");
+    }
+
+    /**
+     * Auto-detect jenis kelamin siswa kelas binaan berdasarkan nama
+     */
+    public function autoDetectGender()
+    {
+        $walasId = (int)$this->session->get('ref_id');
+        $kelas   = $this->kelasModel->getKelasByWalas($walasId);
+
+        if (! $kelas) {
+            return redirect()->to('/walas')->with('error', 'Anda tidak memiliki kelas ampu.');
+        }
+
+        $res = $this->siswaModel->autoDetectGender((int)$kelas['id']);
+
+        return redirect()->back()->with('success', "Auto-Detect Berhasil! {$res['total']} siswa kelas {$kelas['nama_kelas']} berhasil diidentifikasi (Laki-laki: {$res['l']}, Perempuan: {$res['p']}).");
+    }
+
+    /**
+     * Simpan massal perubahan jenis kelamin siswa kelas binaan
+     */
+    public function simpanGenderBatch()
+    {
+        $walasId = (int)$this->session->get('ref_id');
+        $kelas   = $this->kelasModel->getKelasByWalas($walasId);
+
+        if (! $kelas) {
+            return redirect()->to('/walas')->with('error', 'Anda tidak memiliki kelas ampu.');
+        }
+
+        $genderData = $this->request->getPost('gender');
+        if (is_array($genderData)) {
+            $updated = 0;
+            foreach ($genderData as $sId => $g) {
+                if (in_array($g, ['L', 'P'], true)) {
+                    $this->siswaModel->where('kelas_id', (int)$kelas['id'])
+                                     ->where('id', (int)$sId)
+                                     ->set(['jenis_kelamin' => $g])
+                                     ->update();
+                    $updated++;
+                }
+            }
+            return redirect()->back()->with('success', "Berhasil memperbarui jenis kelamin untuk {$updated} siswa kelas {$kelas['nama_kelas']}.");
+        }
+        return redirect()->back()->with('error', 'Tidak ada data jenis kelamin yang dikirim.');
+    }
+
+    /**
+     * Laporan Keterlambatan Khusus Kelas Ampu Walas
+     * Aturan:
+     * - Terlambat > 1 kali: Dilaporkan ke Walas (Badge Kuning)
+     * - Terlambat > 3 kali: Wajib Pembinaan (Badge Merah)
+     */
+    public function keterlambatan()
+    {
+        $walasId = (int)$this->session->get('ref_id');
+        $kelas   = $this->kelasModel->getKelasByWalas($walasId);
+
+        if (! $kelas) {
+            return view('walas/no_kelas', [
+                'title' => 'Laporan Keterlambatan Siswa',
+            ]);
+        }
+
+        $kelasId   = (int)$kelas['id'];
+        $startDate = $this->request->getGet('start_date') ?: date('Y-m-01');
+        $endDate   = $this->request->getGet('end_date') ?: date('Y-m-t');
+
+        // Rekap keterlambatan seluruh siswa kelas
+        $rekapTerlambat = $this->keterlambatanSiswaModel->getRekapKeterlambatanKelas($kelasId, $startDate, $endDate);
+
+        // Riwayat log piket lengkap untuk kelas ini
+        $logTerlambat = $this->keterlambatanSiswaModel
+            ->select('keterlambatan_siswa.*, siswa.nama_siswa, siswa.nisn, users.username as pencatat')
+            ->join('siswa', 'siswa.id = keterlambatan_siswa.siswa_id')
+            ->join('users', 'users.id = keterlambatan_siswa.dicatat_oleh', 'left')
+            ->where('siswa.kelas_id', $kelasId)
+            ->where('keterlambatan_siswa.tanggal >=', $startDate)
+            ->where('keterlambatan_siswa.tanggal <=', $endDate)
+            ->orderBy('keterlambatan_siswa.tanggal', 'DESC')
+            ->orderBy('keterlambatan_siswa.jam_masuk', 'DESC')
+            ->findAll();
+
+        $totalSiswaTerlambat = count(array_filter($rekapTerlambat, static fn($r) => (int)$r['total_terlambat'] > 0));
+        $siswaPerhatian      = count(array_filter($rekapTerlambat, static fn($r) => (int)$r['total_terlambat'] > 1 && (int)$r['total_terlambat'] <= 3));
+        $siswaWajibBina      = count(array_filter($rekapTerlambat, static fn($r) => (int)$r['total_terlambat'] > 3));
+        $totalKejadian       = count($logTerlambat);
+
+        return view('walas/keterlambatan', [
+            'title'               => 'Laporan Keterlambatan Kelas ' . $kelas['nama_kelas'],
+            'kelas'               => $kelas,
+            'rekapTerlambat'      => $rekapTerlambat,
+            'logTerlambat'        => $logTerlambat,
+            'startDate'           => $startDate,
+            'endDate'             => $endDate,
+            'totalSiswaTerlambat' => $totalSiswaTerlambat,
+            'siswaPerhatian'      => $siswaPerhatian,
+            'siswaWajibBina'      => $siswaWajibBina,
+            'totalKejadian'       => $totalKejadian,
+        ]);
+    }
+
+    /**
+     * Menu Utama Rapat Evaluasi Rombel Akhir Semester (Wali Kelas)
+     */
+    public function evaluasiSemester()
+    {
+        $walasId = (int)$this->session->get('ref_id');
+        $kelas   = $this->kelasModel->getKelasByWalas($walasId);
+
+        if (! $kelas) {
+            return view('walas/no_kelas', [
+                'title' => 'Evaluasi Rombel Akhir Semester',
+            ]);
+        }
+
+        $kelasId = (int)$kelas['id'];
+
+        $semester     = $this->request->getGet('semester') ?: (date('n') >= 7 ? '1' : '2');
+        $tahun        = $this->request->getGet('tahun') ?: date('Y');
+        $minAlpa      = (int)($this->request->getGet('min_alpa') ?: 3);
+        $minTerlambat = (int)($this->request->getGet('min_terlambat') ?: 3);
+        $minKasus     = (int)($this->request->getGet('min_kasus') ?: 1);
+
+        // Rentang tanggal semester
+        if ($semester === '1') {
+            $startDate = $tahun . '-07-01';
+            $endDate   = $tahun . '-12-31';
+            $labelPeriode = "Semester 1 (Ganjil) {$tahun}";
+        } else {
+            $startDate = $tahun . '-01-01';
+            $endDate   = $tahun . '-06-30';
+            $labelPeriode = "Semester 2 (Genap) {$tahun}";
+        }
+
+        // 1. Dinamika Rombel Awal L/P vs Mutasi Keluar L/P vs Akhir Aktif L/P
+        $dinamika = $this->siswaModel->getDinamikaSiswaKelas($kelasId, $startDate, $endDate);
+
+        // 2. Rekap Presensi Seluruh Siswa (termasuk Terlambat T dan Jenis Kelamin)
+        $rekapSiswa = $this->absensiModel->getRekapKelas($kelasId, $startDate, $endDate);
+
+        // 3. Riwayat Pembinaan Siswa di kelas ini selama semester
+        $riwayatPembinaan = $this->pembinaanModel
+            ->select('pembinaan.*, siswa.nama_siswa, siswa.nisn, guru.nama_guru as nama_walas')
+            ->join('siswa', 'siswa.id = pembinaan.siswa_id')
+            ->join('guru', 'guru.id = pembinaan.walas_id', 'left')
+            ->where('siswa.kelas_id', $kelasId)
+            ->where('pembinaan.tanggal_tindakan >=', $startDate)
+            ->where('pembinaan.tanggal_tindakan <=', $endDate)
+            ->orderBy('pembinaan.tanggal_tindakan', 'DESC')
+            ->findAll();
+
+        // Hitung total kasus SP per siswa
+        $kasusPerSiswa = [];
+        foreach ($riwayatPembinaan as $p) {
+            $sId = (int)$p['siswa_id'];
+            if (! isset($kasusPerSiswa[$sId])) {
+                $kasusPerSiswa[$sId] = [];
+            }
+            $kasusPerSiswa[$sId][] = $p;
+        }
+
+        // 4. Identifikasi Siswa Bermasalah berdasarkan Threshold Rapat
+        $siswaBermasalah = [];
+        foreach ($rekapSiswa as $item) {
+            $sId        = (int)$item['siswa_id'];
+            $alpa       = (int)($item['total_a'] ?? 0);
+            $terlambat  = (int)($item['total_t'] ?? 0);
+            $kasusList  = $kasusPerSiswa[$sId] ?? [];
+            $totalKasus = count($kasusList);
+            $hasSP      = $totalKasus >= $minKasus;
+
+            if ($alpa >= $minAlpa || $terlambat >= $minTerlambat || $hasSP) {
+                $item['kasus_pembinaan'] = $kasusList;
+                $item['total_kasus_sp']  = $totalKasus;
+                $siswaBermasalah[] = $item;
+            }
+        }
+
+        return view('walas/evaluasi_semester', [
+            'title'            => 'Rapat Evaluasi Akhir Semester - ' . $kelas['nama_kelas'],
+            'kelas'            => $kelas,
+            'semester'         => $semester,
+            'tahun'            => $tahun,
+            'labelPeriode'     => $labelPeriode,
+            'startDate'        => $startDate,
+            'endDate'          => $endDate,
+            'minAlpa'          => $minAlpa,
+            'minTerlambat'     => $minTerlambat,
+            'minKasus'         => $minKasus,
+            'dinamika'         => $dinamika,
+            'rekapSiswa'       => $rekapSiswa,
+            'siswaBermasalah'  => $siswaBermasalah,
+            'riwayatPembinaan' => $riwayatPembinaan,
+        ]);
+    }
+
+    /**
+     * Export Evaluasi Semester ke Format Excel
+     */
+    public function exportEvaluasiSemesterExcel()
+    {
+        $walasId = (int)$this->session->get('ref_id');
+        $kelas   = $this->kelasModel->getKelasByWalas($walasId);
+
+        if (! $kelas) {
+            return redirect()->to('/walas')->with('error', 'Anda tidak memiliki kelas ampu.');
+        }
+
+        $kelasId      = (int)$kelas['id'];
+        $semester     = $this->request->getGet('semester') ?: (date('n') >= 7 ? '1' : '2');
+        $tahun        = $this->request->getGet('tahun') ?: date('Y');
+        $minAlpa      = (int)($this->request->getGet('min_alpa') ?: 3);
+        $minTerlambat = (int)($this->request->getGet('min_terlambat') ?: 3);
+        $minKasus     = (int)($this->request->getGet('min_kasus') ?: 1);
+
+        if ($semester === '1') {
+            $startDate = $tahun . '-07-01';
+            $endDate   = $tahun . '-12-31';
+            $labelPeriode = "Semester 1 (Ganjil)";
+        } else {
+            $startDate = $tahun . '-01-01';
+            $endDate   = $tahun . '-06-30';
+            $labelPeriode = "Semester 2 (Genap)";
+        }
+
+        $dinamika   = $this->siswaModel->getDinamikaSiswaKelas($kelasId, $startDate, $endDate);
+        $rekapSiswa = $this->absensiModel->getRekapKelas($kelasId, $startDate, $endDate);
+
+        $riwayatPembinaan = $this->pembinaanModel
+            ->where('pembinaan.tanggal_tindakan >=', $startDate)
+            ->where('pembinaan.tanggal_tindakan <=', $endDate)
+            ->findAll();
+        $kasusPerSiswa = [];
+        foreach ($riwayatPembinaan as $p) {
+            $sId = (int)$p['siswa_id'];
+            $kasusPerSiswa[$sId][] = $p;
+        }
+
+        $siswaBermasalah = [];
+        foreach ($rekapSiswa as $item) {
+            $sId        = (int)$item['siswa_id'];
+            $alpa       = (int)($item['total_a'] ?? 0);
+            $terlambat  = (int)($item['total_t'] ?? 0);
+            $kasusList  = $kasusPerSiswa[$sId] ?? [];
+            $totalKasus = count($kasusList);
+            $hasSP      = $totalKasus >= $minKasus;
+
+            if ($alpa >= $minAlpa || $terlambat >= $minTerlambat || $hasSP) {
+                $item['kasus_pembinaan'] = $kasusList;
+                $item['total_kasus_sp']  = $totalKasus;
+                $siswaBermasalah[] = $item;
+            }
+        }
+
+        $tahunAjaran = $tahun . '/' . ((int)$tahun + 1);
+        $this->exportService->exportEvaluasiSemester($kelas, $dinamika, $rekapSiswa, $siswaBermasalah, $labelPeriode, $tahunAjaran);
     }
 }

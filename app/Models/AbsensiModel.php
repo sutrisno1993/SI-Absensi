@@ -86,7 +86,7 @@ class AbsensiModel extends Model
     /**
      * Helper untuk memetakan filter periode (all, hari, minggu, bulan, semester, tahun) ke startDate, endDate, dan label
      */
-    public function resolveDateFilter(?string $periode = null, $bulan = null, $tahun = null, ?string $semester = null, ?string $tanggal = null): array
+    public function resolveDateFilter(?string $periode = null, $bulan = null, $tahun = null, ?string $semester = null, ?string $tanggal = null, ?string $startDateCustom = null, ?string $endDateCustom = null): array
     {
         $startDate = null;
         $endDate   = null;
@@ -96,7 +96,23 @@ class AbsensiModel extends Model
 
         $namaBulan = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 
-        if ($periode === 'hari') {
+        if ($periode === 'rentang' || $periode === 'custom' || (!empty($startDateCustom) && !empty($endDateCustom) && $periode !== 'bulan' && $periode !== 'semester' && $periode !== 'tahun' && $periode !== 'all' && $periode !== 'hari' && $periode !== 'minggu')) {
+            $startDate = !empty($startDateCustom) ? $startDateCustom : date('Y-m-01');
+            $endDate   = !empty($endDateCustom) ? $endDateCustom : date('Y-m-d');
+
+            if (strtotime($startDate) > strtotime($endDate)) {
+                $temp = $startDate;
+                $startDate = $endDate;
+                $endDate = $temp;
+            }
+
+            $sTs = strtotime($startDate);
+            $eTs = strtotime($endDate);
+            $sFormatted = date('j', $sTs) . ' ' . ($namaBulan[(int)date('n', $sTs)] ?? '') . ' ' . date('Y', $sTs);
+            $eFormatted = date('j', $eTs) . ' ' . ($namaBulan[(int)date('n', $eTs)] ?? '') . ' ' . date('Y', $eTs);
+
+            $label = "Rentang: {$sFormatted} s/d {$eFormatted}";
+        } elseif ($periode === 'hari') {
             $startDate = $tanggal;
             $endDate   = $tanggal;
             $tTime     = strtotime($tanggal);
@@ -113,12 +129,12 @@ class AbsensiModel extends Model
             $startTs = strtotime($startDate);
             $endTs   = strtotime($endDate);
             $label   = "Mingguan (" . date('d', $startTs) . " " . ($namaBulan[(int)date('n', $startTs)]) . " - " . date('d', $endTs) . " " . ($namaBulan[(int)date('n', $endTs)]) . " " . date('Y', $endTs) . ")";
-        } elseif ($periode === 'bulan' || (!empty($bulan) && $periode !== 'semester' && $periode !== 'tahun' && $periode !== 'all' && $periode !== 'hari' && $periode !== 'minggu')) {
+        } elseif ($periode === 'bulan' || (!empty($bulan) && $periode !== 'semester' && $periode !== 'tahun' && $periode !== 'all' && $periode !== 'hari' && $periode !== 'minggu' && $periode !== 'rentang' && $periode !== 'custom')) {
             $bulan     = (int)$bulan;
             $startDate = sprintf('%04d-%02d-01', $tahun, $bulan);
             $endDate   = date('Y-m-t', strtotime($startDate));
             $label     = "Bulan " . ($namaBulan[$bulan] ?? '') . " " . $tahun;
-        } elseif ($periode === 'semester' || (!empty($semester) && $periode !== 'tahun' && $periode !== 'all')) {
+        } elseif ($periode === 'semester' || (!empty($semester) && $periode !== 'tahun' && $periode !== 'all' && $periode !== 'rentang' && $periode !== 'custom')) {
             $sem = strtolower((string)$semester) === 'genap' ? 'genap' : 'ganjil';
             if ($sem === 'genap') {
                 $startDate = sprintf('%04d-01-01', $tahun);
@@ -146,18 +162,34 @@ class AbsensiModel extends Model
      */
     public function getRekapKelas(int $kelasId, ?string $startDateOrBulan = null, ?string $endDateOrTahun = null): array
     {
+        (new \App\Models\SiswaModel())->ensureTableColumns();
         $db = $this->db;
+
+        $terlambatSubquery = '(SELECT COUNT(ks.id) FROM keterlambatan_siswa ks WHERE ks.siswa_id = s.id';
+        if ($startDateOrBulan && $endDateOrTahun) {
+            if (strpos($startDateOrBulan, '-') !== false && strpos($endDateOrTahun, '-') !== false) {
+                $terlambatSubquery .= ' AND ks.tanggal >= ' . $db->escape($startDateOrBulan) . ' AND ks.tanggal <= ' . $db->escape($endDateOrTahun);
+            } else {
+                $terlambatSubquery .= ' AND MONTH(ks.tanggal) = ' . (int)$startDateOrBulan . ' AND YEAR(ks.tanggal) = ' . (int)$endDateOrTahun;
+            }
+        } elseif ($endDateOrTahun) {
+            $terlambatSubquery .= ' AND YEAR(ks.tanggal) = ' . (int)$endDateOrTahun;
+        }
+        $terlambatSubquery .= ') as total_t';
+
         $builder = $db->table('siswa s');
         $builder->select('
             s.id as siswa_id,
             s.nisn,
             s.nama_siswa,
+            COALESCE(s.jenis_kelamin, "L") as jenis_kelamin,
             s.status as status_siswa,
             COUNT(CASE WHEN a.status = "H" THEN 1 END) as total_h,
             COUNT(CASE WHEN a.status = "S" THEN 1 END) as total_s,
             COUNT(CASE WHEN a.status = "I" THEN 1 END) as total_i,
             COUNT(CASE WHEN a.status = "A" THEN 1 END) as total_a,
             COUNT(CASE WHEN a.status = "P" THEN 1 END) as total_p,
+            ' . $terlambatSubquery . ',
             MAX(a.keterangan) as keterangan
         ');
         
@@ -176,10 +208,21 @@ class AbsensiModel extends Model
 
         $builder->join('absensi a', $joinCondition, 'left');
         $builder->where('s.kelas_id', $kelasId);
-        $builder->groupBy('s.id, s.nisn, s.nama_siswa, s.status');
+        $builder->groupBy('s.id, s.nisn, s.nama_siswa, s.jenis_kelamin, s.status');
         $builder->orderBy('s.nama_siswa', 'ASC');
 
-        return $builder->get()->getResultArray();
+        $result = $builder->get()->getResultArray();
+        foreach ($result as &$row) {
+            $h = (int)($row['total_h'] ?? 0);
+            $s = (int)($row['total_s'] ?? 0);
+            $i = (int)($row['total_i'] ?? 0);
+            $a = (int)($row['total_a'] ?? 0);
+            $tot = $h + $s + $i + $a;
+            $row['persen_kehadiran'] = $tot > 0 ? round(($h / $tot) * 100, 1) : 0;
+        }
+        unset($row);
+
+        return $result;
     }
 
     /**
@@ -469,15 +512,40 @@ class AbsensiModel extends Model
 
         $rows = $db->query($sql)->getResultArray();
 
+        // Ambil agenda kalender pendidikan (libur / bebas absen) pada tanggal ini
+        $kalenderModel = new \App\Models\KalenderPendidikanModel();
+        $agendaLibur = $kalenderModel->getHariBebasAbsenMap($tanggal, $tanggal);
+
         $result = [];
         foreach ($rows as $r) {
             $totalSiswa   = (int)$r['total_siswa_aktif'];
             $totalDiabsen = (int)$r['total_diabsen'];
+            $tingkat      = $this->getTingkatKelas($r['nama_kelas']);
+
+            // Cek apakah rombel kelas ini masuk dalam cakupan agenda bebas absen
+            $agendaBebas = null;
+            foreach ($agendaLibur as $agenda) {
+                $targetTingkat = $agenda['target_tingkat'] ?? 'semua';
+                $targetKelasId = !empty($agenda['target_kelas_id']) ? (int)$agenda['target_kelas_id'] : null;
+
+                if ($targetTingkat === 'semua' || $targetTingkat === $tingkat || $targetKelasId === (int)$r['kelas_id']) {
+                    $agendaBebas = $agenda;
+                    break;
+                }
+            }
+
+            $isBebasAbsen = ($agendaBebas !== null);
 
             if ($totalDiabsen === 0) {
-                $statusInput = 'belum';
-                $statusLabel = 'Belum Input';
-                $statusBadge = 'danger';
+                if ($isBebasAbsen) {
+                    $statusInput = 'bebas_absen';
+                    $statusLabel = 'Bebas Absen';
+                    $statusBadge = 'info';
+                } else {
+                    $statusInput = 'belum';
+                    $statusLabel = 'Belum Input';
+                    $statusBadge = 'danger';
+                }
             } elseif ($totalDiabsen < $totalSiswa) {
                 $statusInput = 'sebagian';
                 $statusLabel = 'Sebagian (' . $totalDiabsen . '/' . $totalSiswa . ')';
@@ -488,11 +556,14 @@ class AbsensiModel extends Model
                 $statusBadge = 'success';
             }
 
-            $r['total_siswa_aktif'] = $totalSiswa;
-            $r['total_diabsen']     = $totalDiabsen;
-            $r['status_input']      = $statusInput;
-            $r['status_label']      = $statusLabel;
-            $r['status_badge']      = $statusBadge;
+            $r['total_siswa_aktif']  = $totalSiswa;
+            $r['total_diabsen']      = $totalDiabsen;
+            $r['status_input']       = $statusInput;
+            $r['status_label']       = $statusLabel;
+            $r['status_badge']       = $statusBadge;
+            $r['is_bebas_absen']     = $isBebasAbsen;
+            $r['agenda_bebas_absen'] = $agendaBebas['nama_agenda'] ?? null;
+            $r['agenda_tipe']        = $agendaBebas['tipe'] ?? null;
 
             $result[] = $r;
         }

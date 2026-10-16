@@ -168,12 +168,13 @@
                     <th>Nama Lengkap Siswa</th>
                     <th class="text-center" style="width: 130px;">Jenis Kelamin</th>
                     <th class="text-center" style="width: 120px;">Status</th>
+                    <th class="text-end" style="width: 160px;">Aksi</th>
                 </tr>
             </thead>
             <tbody>
                 <?php if (empty($siswaList)): ?>
                     <tr>
-                        <td colspan="5" class="text-center py-5 text-muted">
+                        <td colspan="6" class="text-center py-5 text-muted">
                             <i class="bi bi-people fs-1 d-block mb-2"></i> Belum ada data siswa di rombel ini.
                         </td>
                     </tr>
@@ -191,9 +192,29 @@
                                 <?php endif; ?>
                             </td>
                             <td class="text-center">
-                                <span class="badge bg-success bg-opacity-20 text-success border border-success border-opacity-25">
-                                    <?= esc($s['status'] ?? 'Aktif') ?>
-                                </span>
+                                <?php if (($s['status'] ?? 'Aktif') === 'Aktif'): ?>
+                                    <span class="badge bg-success bg-opacity-20 text-success border border-success border-opacity-25 px-2 py-1">
+                                        <i class="bi bi-check-circle-fill me-1"></i> Aktif
+                                    </span>
+                                <?php else: ?>
+                                    <span class="badge bg-secondary bg-opacity-20 text-muted border border-secondary border-opacity-25 px-2 py-1">
+                                        <i class="bi bi-slash-circle-fill me-1"></i> Nonaktif
+                                    </span>
+                                <?php endif; ?>
+                            </td>
+                            <td class="text-end">
+                                <form action="<?= site_url('walas/siswa/toggle-status/' . $s['id']) ?>" method="POST" class="d-inline">
+                                    <?= csrf_field() ?>
+                                    <?php if (($s['status'] ?? 'Aktif') === 'Aktif'): ?>
+                                        <button type="submit" class="btn btn-sm btn-outline-warning rounded-pill px-2 py-1" onclick="return confirm('Nonaktifkan siswa <?= esc(addslashes($s['nama_siswa'])) ?>? Siswa tidak akan muncul di form presensi.')" title="Nonaktifkan Siswa">
+                                            <i class="bi bi-person-x"></i> Nonaktifkan
+                                        </button>
+                                    <?php else: ?>
+                                        <button type="submit" class="btn btn-sm btn-outline-success rounded-pill px-2 py-1" onclick="return confirm('Aktifkan kembali siswa <?= esc(addslashes($s['nama_siswa'])) ?>?')" title="Aktifkan Siswa">
+                                            <i class="bi bi-person-check"></i> Aktifkan
+                                        </button>
+                                    <?php endif; ?>
+                                </form>
                             </td>
                         </tr>
                     <?php endforeach; ?>

@@ -37,8 +37,11 @@ class PjKelasController extends BaseController
             return redirect()->to('/auth/login')->with('error', 'Kelas Anda tidak ditemukan dalam sistem.');
         }
 
-        // Kunci secara ketat ke tanggal hari ini untuk PJ Kelas
-        $tanggal = date('Y-m-d');
+        // Ambil parameter tanggal atau gunakan hari ini
+        $tanggal = $this->request->getGet('tanggal');
+        if (empty($tanggal) || ! strtotime($tanggal)) {
+            $tanggal = date('Y-m-d');
+        }
 
         // Isolation data: hanya ambil siswa milik kelas ini
         $daftarSiswa = $this->absensiModel->getAbsensiByDateAndKelas($tanggal, $kelasId);
@@ -49,38 +52,46 @@ class PjKelasController extends BaseController
         // Ambil data wali kelas
         $walas = !empty($kelas['walas_id']) ? $this->guruModel->find($kelas['walas_id']) : null;
 
-        // Hitung rekapitulasi kehadiran hari ini
+        $hasExistingRecords = !empty(array_filter($daftarSiswa, static fn($s) => !empty($s['absensi_id'])));
+
+        // Hitung rekapitulasi kehadiran (hanya dihitung jika presensi sudah diisi)
         $isKelas2 = $this->absensiModel->isKelas2($kelas['nama_kelas']);
         $countH = 0; $countS = 0; $countI = 0; $countA = 0; $countP = 0;
-        foreach ($daftarSiswa as $s) {
-            $st = $s['status'] ?? 'H';
-            if ($st === 'H') $countH++;
-            elseif ($st === 'S') $countS++;
-            elseif ($st === 'I') $countI++;
-            elseif ($st === 'A') $countA++;
-            elseif ($st === 'P') $countP++;
+        if ($hasExistingRecords) {
+            foreach ($daftarSiswa as $s) {
+                if (empty($s['absensi_id'])) continue;
+                $st = $s['status'] ?? 'H';
+                if ($st === 'H') $countH++;
+                elseif ($st === 'S') $countS++;
+                elseif ($st === 'I') $countI++;
+                elseif ($st === 'A') $countA++;
+                elseif ($st === 'P') $countP++;
+            }
         }
 
         $kalenderModel    = new \App\Models\KalenderPendidikanModel();
         $tingkat          = $this->absensiModel->getTingkatKelas($kelas['nama_kelas']);
         $agendaBebasAbsen = $kalenderModel->isHariBebasAbsen($tanggal, $tingkat, $kelasId);
         $isSunday         = ((int)date('w', strtotime($tanggal)) === 0);
+        $kalenderEvents   = $kalenderModel->getEventsForPicker($tingkat, $kelasId);
 
         return view('pj/absen_harian', [
-            'title'            => 'Input Presensi Harian - ' . $kelas['nama_kelas'],
-            'kelas'            => $kelas,
-            'walas'            => $walas,
-            'tanggal'          => $tanggal,
-            'daftarSiswa'      => $daftarSiswa,
-            'sesiKelas'        => $sesiKelas,
-            'countH'           => $countH,
-            'countS'           => $countS,
-            'countI'           => $countI,
-            'countA'           => $countA,
-            'countP'           => $countP,
-            'isKelas2'         => $isKelas2,
-            'agendaBebasAbsen' => $agendaBebasAbsen,
-            'isSunday'         => $isSunday,
+            'title'              => 'Input Presensi Harian - ' . $kelas['nama_kelas'],
+            'kelas'              => $kelas,
+            'walas'              => $walas,
+            'tanggal'            => $tanggal,
+            'daftarSiswa'        => $daftarSiswa,
+            'sesiKelas'          => $sesiKelas,
+            'countH'             => $countH,
+            'countS'             => $countS,
+            'countI'             => $countI,
+            'countA'             => $countA,
+            'countP'             => $countP,
+            'isKelas2'           => $isKelas2,
+            'agendaBebasAbsen'   => $agendaBebasAbsen,
+            'isSunday'           => $isSunday,
+            'hasExistingRecords' => $hasExistingRecords,
+            'kalenderEvents'     => $kalenderEvents,
         ]);
     }
 
@@ -90,7 +101,7 @@ class PjKelasController extends BaseController
     public function simpan()
     {
         $kelasId = (int)$this->session->get('ref_id');
-        $tanggal = date('Y-m-d');
+        $tanggal = $this->request->getPost('tanggal') ?: date('Y-m-d');
         $inputAbsensi = $this->request->getPost('absensi') ?: [];
 
         if (empty($inputAbsensi)) {
@@ -110,7 +121,7 @@ class PjKelasController extends BaseController
 
         if ($isSunday || !empty($agendaBebasAbsen)) {
             $reason = $isSunday ? 'Hari Minggu adalah hari libur akhir pekan.' : ('Hari ini adalah agenda ' . esc($agendaBebasAbsen['nama_agenda']) . ' (Bebas KBM).');
-            return redirect()->back()->with('error', 'Pengisian Presensi Ditolak: ' . $reason . ' Siswa tidak diperkenankan mengisi presensi.');
+            return redirect()->back()->with('error', 'Pengisian Presensi Ditolak: ' . $reason . ' Siswa tidak diperkenankan mengisi presensi pada hari libur.');
         }
 
         // Ambil daftar valid siswa_id aktif pada kelas ini (Security Data Isolation)
@@ -130,7 +141,7 @@ class PjKelasController extends BaseController
                 return redirect()->back()->with('error', 'Akses ditolak: Terdeteksi manipulasi data siswa luar kelas.');
             }
 
-            // Validasi: status kehadiran wajib diisi (tidak boleh null/kosong)
+            // Validasi: status kehadiran wajib diisi (tidak boleh kosong)
             if (empty($row['status']) || !in_array($row['status'], $allowedStatuses)) {
                 return redirect()->back()->with('error', 'Status kehadiran wajib dipilih untuk semua siswa. Pastikan tidak ada yang kosong.');
             }
@@ -165,10 +176,33 @@ class PjKelasController extends BaseController
         }
 
         if ($success) {
-            return redirect()->to('/pj')->with('success', 'Presensi dan dokumentasi kelas berhasil disimpan!');
+            return redirect()->to('/pj?tanggal=' . $tanggal)->with('success', 'Presensi dan dokumentasi kelas tanggal ' . date('d/m/Y', strtotime($tanggal)) . ' berhasil disimpan!');
         }
 
         return redirect()->back()->with('error', 'Gagal menyimpan presensi. Silakan coba lagi.');
+    }
+
+    /**
+     * Kosongkan seluruh data presensi kelas untuk tanggal tertentu
+     */
+    public function kosongkanAbsen()
+    {
+        $kelasId = (int)$this->session->get('ref_id');
+        $kelas   = $this->kelasModel->find($kelasId);
+
+        if (! $kelas) {
+            return redirect()->to('/pj')->with('error', 'Kelas tidak ditemukan.');
+        }
+
+        $tanggal = $this->request->getPost('tanggal');
+        if (empty($tanggal) || ! strtotime($tanggal)) {
+            return redirect()->back()->with('error', 'Tanggal tidak valid.');
+        }
+
+        $deletedCount = $this->absensiModel->deletePresensiByDateAndKelas($tanggal, $kelasId);
+
+        return redirect()->to('/pj?tanggal=' . $tanggal)
+                         ->with('success', 'Presensi kelas ' . esc($kelas['nama_kelas']) . ' untuk tanggal ' . date('d/m/Y', strtotime($tanggal)) . ' berhasil dikosongkan. ' . ($deletedCount > 0 ? "Sebanyak {$deletedCount} data presensi siswa berhasil dibersihkan dan dikembalikan ke status awal (belum diisi)." : 'Data presensi sudah dalam kondisi kosong.'));
     }
 
     /**
@@ -177,7 +211,7 @@ class PjKelasController extends BaseController
     public function uploadFoto()
     {
         $kelasId = (int)$this->session->get('ref_id');
-        $tanggal = date('Y-m-d');
+        $tanggal = $this->request->getPost('tanggal') ?: date('Y-m-d');
 
         $fotoFile = $this->request->getFile('foto_kelas');
         if (! $fotoFile || ! $fotoFile->isValid() || $fotoFile->hasMoved()) {
@@ -203,7 +237,7 @@ class PjKelasController extends BaseController
             'foto_kelas' => 'uploads/dokumentasi/' . $newName,
         ]);
 
-        return redirect()->to('/pj')->with('success', 'Foto dokumentasi kelas berhasil diperbarui!');
+        return redirect()->to('/pj?tanggal=' . $tanggal)->with('success', 'Foto dokumentasi kelas berhasil diperbarui!');
     }
 
     /**
@@ -213,13 +247,17 @@ class PjKelasController extends BaseController
     {
         $kelasId = (int)$this->session->get('ref_id');
         $kelas   = $this->kelasModel->find($kelasId);
-        $periode  = $this->request->getGet('periode') ?: ($this->request->getGet('semester') ? 'semester' : 'bulan');
-        $bulan    = (int)($this->request->getGet('bulan') ?: date('n'));
-        $tahun    = (int)($this->request->getGet('tahun') ?: date('Y'));
-        $semester = $this->request->getGet('semester') ?: (date('n') >= 7 ? 'ganjil' : 'genap');
+        $periode   = $this->request->getGet('periode') ?: ($this->request->getGet('semester') ? 'semester' : 'bulan');
+        $bulan     = (int)($this->request->getGet('bulan') ?: date('n'));
+        $tahun     = (int)($this->request->getGet('tahun') ?: date('Y'));
+        $semester  = $this->request->getGet('semester') ?: (date('n') >= 7 ? 'ganjil' : 'genap');
+        $startDate = $this->request->getGet('start_date') ?: date('Y-m-01');
+        $endDate   = $this->request->getGet('end_date') ?: date('Y-m-d');
 
-        [$startDate, $endDate, $labelPeriode] = $this->absensiModel->resolveDateFilter($periode, $bulan, $tahun, $semester);
-        $rekap = $this->absensiModel->getRekapKelas($kelasId, $startDate, $endDate);
+        [$startDateResolved, $endDateResolved, $labelPeriode] = $this->absensiModel->resolveDateFilter(
+            $periode, $bulan, $tahun, $semester, null, $startDate, $endDate
+        );
+        $rekap = $this->absensiModel->getRekapKelas($kelasId, $startDateResolved, $endDateResolved);
 
         return view('pj/rekap', [
             'title'        => 'Rekap Presensi Kelas',
@@ -228,6 +266,8 @@ class PjKelasController extends BaseController
             'bulan'        => $bulan,
             'tahun'        => $tahun,
             'semester'     => $semester,
+            'startDate'    => $startDate,
+            'endDate'      => $endDate,
             'labelPeriode' => $labelPeriode,
             'rekap'        => $rekap,
         ]);

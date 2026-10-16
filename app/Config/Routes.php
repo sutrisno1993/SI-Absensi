@@ -8,6 +8,8 @@ use CodeIgniter\Router\RouteCollection;
 
 // Landing page -> redirect ke login
 $routes->get('/', 'AuthController::login');
+$routes->get('login', 'AuthController::login');
+$routes->get('logout', 'AuthController::logout');
 
 // Auth Routes
 $routes->group('auth', static function ($routes) {
@@ -41,6 +43,8 @@ $routes->group('admin', ['filter' => ['auth', 'role:admin']], static function ($
     $routes->get('siswa/hapus/(:num)', 'AdminController::hapusSiswa/$1');
     $routes->get('siswa/download-template', 'AdminController::downloadTemplateSiswa');
     $routes->post('siswa/import', 'AdminController::importSiswa');
+    $routes->post('siswa/auto-detect-gender', 'AdminController::autoDetectGender');
+    $routes->post('siswa/simpan-gender-batch', 'AdminController::simpanGenderBatch');
     
     // Pengguna / User & Reset Password
     $routes->get('users', 'AdminController::users');
@@ -84,6 +88,11 @@ $routes->group('admin', ['filter' => ['auth', 'role:admin']], static function ($
     $routes->get('kalender-pendidikan', 'AdminController::kalenderPendidikan');
     $routes->post('kalender-pendidikan/simpan', 'AdminController::simpanKalenderPendidikan');
     $routes->get('kalender-pendidikan/hapus/(:num)', 'AdminController::hapusKalenderPendidikan/$1');
+
+    // Evaluasi Rombel Rapat Akhir Semester (Dinamika L/P, Mutasi Berkas, Pelanggaran & Pembinaan)
+    $routes->get('evaluasi-semester', 'AdminController::evaluasiSemester');
+    $routes->get('evaluasi-semester/export-excel', 'AdminController::exportEvaluasiSemesterExcel');
+    $routes->post('siswa/nonaktifkan', 'AdminController::nonaktifkanSiswa');
 });
 
 // Guru Piket Route Group (Filter: auth, role:admin,walas,guru_piket)
@@ -112,6 +121,20 @@ $routes->group('walas', ['filter' => ['auth', 'role:walas', 'force_change_pwd']]
     $routes->post('tandai-libur', 'WalasController::tandaiLiburAcara');
     $routes->post('batalkan-libur', 'WalasController::batalkanTandaiLibur');
     
+    // Laporan Keterlambatan Kelas Siswa
+    $routes->get('keterlambatan', 'WalasController::keterlambatan');
+
+    // Evaluasi Rombel Rapat Akhir Semester
+    $routes->get('evaluasi-semester', 'WalasController::evaluasiSemester');
+    $routes->get('evaluasi-semester/export-excel', 'WalasController::exportEvaluasiSemesterExcel');
+
+    // Manajemen Siswa Kelas (Aktif / Nonaktifkan)
+    $routes->get('siswa', 'WalasController::siswa');
+    $routes->post('siswa/toggle-status/(:num)', 'WalasController::toggleStatusSiswa/$1');
+    $routes->post('siswa/nonaktifkan', 'WalasController::nonaktifkanSiswa');
+    $routes->post('siswa/auto-detect-gender', 'WalasController::autoDetectGender');
+    $routes->post('siswa/simpan-gender-batch', 'WalasController::simpanGenderBatch');
+
     // Manajemen Akun Khusus Perwakilan Kelas
     $routes->get('akun-siswa', 'WalasController::akunSiswa');
     $routes->post('akun-siswa/generate', 'WalasController::generateAkunKelas');
@@ -125,6 +148,8 @@ $routes->group('pj', ['filter' => ['auth', 'role:pj_kelas']], static function ($
     $routes->get('/', 'PjKelasController::index');
     $routes->get('absen', 'PjKelasController::index');
     $routes->post('simpan', 'PjKelasController::simpan');
+    $routes->post('absen/hapus', 'PjKelasController::kosongkanAbsen');
+    $routes->post('kosongkan', 'PjKelasController::kosongkanAbsen');
     $routes->post('upload-foto', 'PjKelasController::uploadFoto');
     $routes->get('rekap', 'PjKelasController::rekap');
 });

@@ -9,6 +9,9 @@
         <p class="text-muted small mb-0">Pantau perkembangan kedisiplinan dan input tindakan pembinaan untuk siswa binaan Anda.</p>
     </div>
     <div class="col-12 col-md-5 mt-3 mt-md-0 text-md-end d-flex justify-content-md-end gap-2">
+        <a href="<?= site_url('walas/rekap?periode=rentang') ?>" class="btn btn-outline-secondary fw-semibold rounded-3 shadow-sm">
+            <i class="bi bi-calendar-range me-1"></i> Rekap Rentang Waktu
+        </a>
         <a href="<?= site_url('walas/absen') ?>" class="btn btn-outline-primary fw-semibold rounded-3 shadow-sm">
             <i class="bi bi-clipboard-check me-1"></i> Input Presensi Kelewat
         </a>
@@ -29,7 +32,9 @@
                 <div>
                     <div class="text-muted small fw-semibold">Kelas Binaan</div>
                     <div class="fs-4 fw-bold text-dark"><?= esc($kelas['nama_kelas']) ?></div>
-                    <small class="text-muted"><?= count($daftarSiswa) ?> Siswa Terdaftar</small>
+                    <a href="<?= site_url('walas/siswa') ?>" class="text-primary text-decoration-none small fw-semibold d-inline-block">
+                        <?= count($daftarSiswa) ?> Siswa Aktif · Kelola <i class="bi bi-arrow-right"></i>
+                    </a>
                 </div>
             </div>
         </div>
@@ -42,9 +47,9 @@
                     <i class="bi bi-exclamation-octagon-fill fs-3"></i>
                 </div>
                 <div>
-                    <div class="text-muted small fw-semibold">Perlu Pembinaan (Alpa > 3)</div>
-                    <div class="fs-4 fw-bold text-danger"><?= count($siswaBermasalah) ?> Siswa</div>
-                    <small class="text-muted">Membutuhkan intervensi segera</small>
+                    <div class="text-muted small fw-semibold">Siswa Perlu Pembinaan</div>
+                    <div class="fs-4 fw-bold text-danger"><?= count($siswaBermasalah) + count($siswaTerlambatBina ?? []) ?> Siswa</div>
+                    <small class="text-muted">Alpa > 3 atau Terlambat > 3x</small>
                 </div>
             </div>
         </div>
@@ -53,13 +58,13 @@
     <div class="col-12 col-sm-6 col-xl-4">
         <div class="card card-custom border-0 p-3 h-100">
             <div class="d-flex align-items-center gap-3">
-                <div class="rounded-4 p-3 bg-success bg-opacity-10 text-success">
-                    <i class="bi bi-journal-bookmark-fill fs-3"></i>
+                <div class="rounded-4 p-3 bg-warning bg-opacity-10 text-warning">
+                    <i class="bi bi-clock-history fs-3"></i>
                 </div>
                 <div>
-                    <div class="text-muted small fw-semibold">Total Tindakan Pembinaan</div>
-                    <div class="fs-4 fw-bold text-success"><?= count($riwayatPembinaan) ?> Tindakan</div>
-                    <small class="text-muted">Tercatat dalam sistem</small>
+                    <div class="text-muted small fw-semibold">Laporan Terlambat (>1x)</div>
+                    <div class="fs-4 fw-bold text-warning"><?= count($siswaTerlambatLapor ?? []) ?> Siswa</div>
+                    <small class="text-muted"><a href="<?= site_url('walas/keterlambatan') ?>" class="text-decoration-none">Lihat rincian piket &rarr;</a></small>
                 </div>
             </div>
         </div>
@@ -107,6 +112,59 @@
                     </div>
                 <?php endforeach; ?>
             </div>
+        </div>
+    </div>
+<?php endif; ?>
+
+<!-- CRITICAL ALERT: Siswa Terlambat > 3 Kali (Wajib Pembinaan) -->
+<?php if (! empty($siswaTerlambatBina)): ?>
+    <div class="card border-danger border-2 shadow-sm rounded-4 mb-4 overflow-hidden">
+        <div class="card-header bg-danger text-white py-3 d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-shield-fill-exclamation fs-4"></i>
+                <h5 class="mb-0 fw-bold">Peringatan Disiplin: Siswa Terlambat Lebih Dari 3 Kali (Wajib Pembinaan)!</h5>
+            </div>
+            <a href="<?= site_url('walas/keterlambatan') ?>" class="badge bg-white text-danger fw-bold px-3 py-2 rounded-pill text-decoration-none">
+                Buka Laporan Terlambat &rarr;
+            </a>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-danger">
+                    <tr>
+                        <th class="text-center" style="width: 50px;">No</th>
+                        <th style="width: 140px;">NISN</th>
+                        <th>Nama Siswa</th>
+                        <th class="text-center" style="width: 140px;">Frekuensi Terlambat</th>
+                        <th style="width: 250px;">Riwayat Tanggal</th>
+                        <th class="text-end" style="width: 160px;">Aksi Cepat</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($siswaTerlambatBina as $idx => $st): ?>
+                        <tr>
+                            <td class="text-center fw-bold"><?= $idx + 1 ?></td>
+                            <td><span class="badge bg-light text-dark border font-monospace"><?= esc($st['nisn']) ?></span></td>
+                            <td class="fw-bold text-dark fs-6"><?= esc($st['nama_siswa']) ?></td>
+                            <td class="text-center">
+                                <span class="badge bg-danger px-3 py-2 fs-6 rounded-pill">
+                                    <i class="bi bi-stopwatch-fill me-1"></i> <?= $st['total_terlambat'] ?>x (<?= $st['total_menit'] ?> Menit)
+                                </span>
+                            </td>
+                            <td>
+                                <small class="text-muted font-monospace d-block" style="font-size: 0.76rem;">
+                                    <?= esc($st['riwayat_tgl'] ?? '-') ?>
+                                </small>
+                            </td>
+                            <td class="text-end">
+                                <button type="button" class="btn btn-sm btn-danger fw-bold rounded-pill px-3 shadow-sm" onclick="binaSiswaCepat(<?= $st['siswa_id'] ?>, '<?= addslashes($st['nama_siswa']) ?>')">
+                                    <i class="bi bi-pencil-square me-1"></i> Bina Siswa
+                                </button>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
         </div>
     </div>
 <?php endif; ?>
@@ -314,7 +372,7 @@
                     <div class="alert alert-warning bg-opacity-10 border-0 rounded-3 mb-3 d-flex align-items-start gap-2">
                         <i class="bi bi-info-circle-fill text-warning fs-5 mt-1"></i>
                         <div class="small text-muted">
-                            Fitur ini digunakan jika ada kegiatan/libur (misal: <strong>Maulid Nabi, Class Meeting, HUT Sekolah, Hari Libur Bersama</strong>) yang belum tercatat oleh Admin di Kalender Pendidikan. Presensi pada tanggal ini akan dinonaktifkan (bebas absen / auto null) dan notifikasi kelewat akan langsung hilang.
+                            Fitur ini digunakan jika ada kegiatan/libur (misal: <strong>Maulid Nabi, Class Meeting, HUT Sekolah, Hari Libur Bersama</strong>) yang belum tercatat oleh Admin di Kalender Pendidikan. Presensi pada tanggal ini akan dinonaktifkan (bebas absen / otomatis belum diisi) dan notifikasi kelewat akan langsung hilang.
                         </div>
                     </div>
 

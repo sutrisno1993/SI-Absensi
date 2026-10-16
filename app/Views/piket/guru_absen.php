@@ -164,7 +164,7 @@ $headerLaporanWA = $shift . ', ' . $hari . ' ' . $tglMurniIndo;
                                         <label class="status-label" for="status_a_<?= $gt['id'] ?>" title="Alfa">A</label>
 
                                         <!-- Batal / Kosongkan status guru ini -->
-                                        <button type="button" class="btn btn-sm btn-link text-secondary p-0 ms-1 text-decoration-none" onclick="resetStatusGuru(<?= $gt['id'] ?>)" title="Batal / Reset ke Belum Datang (Null)">
+                                        <button type="button" class="btn btn-sm btn-link text-secondary p-0 ms-1 text-decoration-none" onclick="resetStatusGuru(<?= $gt['id'] ?>)" title="Batal / Reset ke Belum Datang">
                                             <i class="bi bi-x-circle text-muted fs-6"></i>
                                         </button>
                                     </div>

@@ -153,16 +153,16 @@ class ExportService
         $sheet->setCellValue('A2', 'Periode: ' . $periodeStr . ' | Shift: ' . ($kelas['shift'] ?? 'Pagi') . ' | Wali Kelas: ' . ($kelas['nama_guru'] ?? '-'));
         $sheet->setCellValue('A3', 'Dicetak pada: ' . date('d F Y, H:i') . ' WIB');
 
-        $sheet->mergeCells('A1:I1');
-        $sheet->mergeCells('A2:I2');
-        $sheet->mergeCells('A3:I3');
+        $sheet->mergeCells('A1:K1');
+        $sheet->mergeCells('A2:K2');
+        $sheet->mergeCells('A3:K3');
 
         $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(13)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('0F172A'));
         $sheet->getStyle('A2')->getFont()->setBold(true)->setSize(10)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('4338CA'));
         $sheet->getStyle('A3')->getFont()->setSize(9)->setItalic(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('64748B'));
 
         // Table Header
-        $headers = ['No', 'NISN', 'Nama Siswa', 'Status Siswa', 'Hadir (H)', 'Sakit (S)', 'Izin (I)', 'Alpa (A)', '% Kehadiran'];
+        $headers = ['No', 'NISN', 'Nama Siswa', 'L/P', 'Status', 'Hadir (H)', 'Sakit (S)', 'Izin (I)', 'Alpa (A)', 'Terlambat (T)', '% Hadir'];
         $col = 'A';
         foreach ($headers as $h) {
             $sheet->setCellValue($col . '5', $h);
@@ -174,45 +174,49 @@ class ExportService
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '059669']], // Emerald Green
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
         ];
-        $sheet->getStyle('A5:I5')->applyFromArray($headerStyle);
+        $sheet->getStyle('A5:K5')->applyFromArray($headerStyle);
         $sheet->getRowDimension(5)->setRowHeight(25);
 
         // Data Rows
         $row = 6;
-        $totalH = 0; $totalS = 0; $totalI = 0; $totalA = 0;
+        $totalH = 0; $totalS = 0; $totalI = 0; $totalA = 0; $totalT = 0;
         foreach ($rekapSiswa as $idx => $s) {
             $h = (int)($s['total_h'] ?? 0);
             $sk = (int)($s['total_s'] ?? 0);
             $i = (int)($s['total_i'] ?? 0);
             $a = (int)($s['total_a'] ?? 0);
+            $t = (int)($s['total_t'] ?? 0);
             $totalPresensi = $h + $sk + $i + $a;
             $persen = $totalPresensi > 0 ? round(($h / $totalPresensi) * 100, 1) : 0;
             $statusSiswa = $s['status_siswa'] ?? 'Aktif';
+            $gender = $s['jenis_kelamin'] ?? 'L';
 
-            $totalH += $h; $totalS += $sk; $totalI += $i; $totalA += $a;
+            $totalH += $h; $totalS += $sk; $totalI += $i; $totalA += $a; $totalT += $t;
 
             $sheet->setCellValue('A' . $row, $idx + 1);
             $sheet->setCellValueExplicit('B' . $row, $s['nisn'], DataType::TYPE_STRING);
             $sheet->setCellValue('C' . $row, $s['nama_siswa']);
-            $sheet->setCellValue('D' . $row, $statusSiswa);
-            $sheet->setCellValue('E' . $row, $h);
-            $sheet->setCellValue('F' . $row, $sk);
-            $sheet->setCellValue('G' . $row, $i);
-            $sheet->setCellValue('H' . $row, $a);
-            $sheet->setCellValue('I' . $row, $persen . '%');
+            $sheet->setCellValue('D' . $row, $gender);
+            $sheet->setCellValue('E' . $row, $statusSiswa);
+            $sheet->setCellValue('F' . $row, $h);
+            $sheet->setCellValue('G' . $row, $sk);
+            $sheet->setCellValue('H' . $row, $i);
+            $sheet->setCellValue('I' . $row, $a);
+            $sheet->setCellValue('J' . $row, $t);
+            $sheet->setCellValue('K' . $row, $persen . '%');
 
             if ($row % 2 === 1) {
-                $sheet->getStyle("A{$row}:I{$row}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('F8FAFC');
+                $sheet->getStyle("A{$row}:K{$row}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('F8FAFC');
             }
 
             $sheet->getStyle("A{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
             $sheet->getStyle("B{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-            $sheet->getStyle("D{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-            $sheet->getStyle("E{$row}:I{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("D{$row}:E{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("F{$row}:K{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
             // Jika siswa nonaktif beri warna teks abu-abu
             if ($statusSiswa === 'Nonaktif') {
-                $sheet->getStyle("A{$row}:I{$row}")->getFont()->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('94A3B8'));
+                $sheet->getStyle("A{$row}:K{$row}")->getFont()->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('94A3B8'));
             }
 
             $row++;
@@ -223,19 +227,20 @@ class ExportService
         $grandPersen = $grandTotal > 0 ? round(($totalH / $grandTotal) * 100, 1) : 0;
 
         $sheet->setCellValue('A' . $row, 'TOTAL KELAS');
-        $sheet->mergeCells("A{$row}:D{$row}");
-        $sheet->setCellValue('E' . $row, $totalH);
-        $sheet->setCellValue('F' . $row, $totalS);
-        $sheet->setCellValue('G' . $row, $totalI);
-        $sheet->setCellValue('H' . $row, $totalA);
-        $sheet->setCellValue('I' . $row, $grandPersen . '%');
+        $sheet->mergeCells("A{$row}:E{$row}");
+        $sheet->setCellValue('F' . $row, $totalH);
+        $sheet->setCellValue('G' . $row, $totalS);
+        $sheet->setCellValue('H' . $row, $totalI);
+        $sheet->setCellValue('I' . $row, $totalA);
+        $sheet->setCellValue('J' . $row, $totalT);
+        $sheet->setCellValue('K' . $row, $grandPersen . '%');
 
         $footerStyle = [
             'font' => ['bold' => true, 'color' => ['rgb' => '0F172A']],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'E2E8F0']],
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
         ];
-        $sheet->getStyle("A{$row}:I{$row}")->applyFromArray($footerStyle);
+        $sheet->getStyle("A{$row}:K{$row}")->applyFromArray($footerStyle);
         $sheet->getStyle("A{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
 
         $borderStyle = [
@@ -246,9 +251,9 @@ class ExportService
                 ],
             ],
         ];
-        $sheet->getStyle("A5:I{$row}")->applyFromArray($borderStyle);
+        $sheet->getStyle("A5:K{$row}")->applyFromArray($borderStyle);
 
-        foreach (range('A', 'I') as $c) {
+        foreach (range('A', 'K') as $c) {
             $sheet->getColumnDimension($c)->setAutoSize(true);
         }
 
@@ -822,6 +827,260 @@ class ExportService
         }
 
         $this->outputFile($spreadsheet, 'Monitoring_Presensi_Siswa_' . date('Ymd_His') . '.xlsx');
+    }
+
+    /**
+     * Export Evaluasi Rombel Rapat Akhir Semester (Dinamika L/P, Siswa Bermasalah, Mutasi, dan Presensi Lengkap)
+     */
+    public function exportEvaluasiSemester(
+        array $kelas, 
+        array $dinamika, 
+        array $rekapSiswa, 
+        array $siswaBermasalah, 
+        string $labelPeriode = 'Semester 1', 
+        string $tahun = '2026/2027'
+    ): void {
+        $spreadsheet = new Spreadsheet();
+        
+        // ==========================
+        // SHEET 1: DINAMIKA & MUTASI
+        // ==========================
+        $sheet1 = $spreadsheet->getActiveSheet();
+        $sheet1->setTitle('Dinamika Rombel');
+
+        // Header
+        $sheet1->setCellValue('A1', 'EVALUASI ROMBEL RAPAT AKHIR SEMESTER');
+        $sheet1->setCellValue('A2', 'KELAS: ' . strtoupper($kelas['nama_kelas'] ?? '-') . ' | WALI KELAS: ' . strtoupper($kelas['nama_walas'] ?? '-') . ' | ' . strtoupper($labelPeriode) . ' T.A ' . $tahun);
+        $sheet1->setCellValue('A3', 'Dicetak pada: ' . date('d F Y, H:i') . ' WIB');
+        $sheet1->mergeCells('A1:G1');
+        $sheet1->mergeCells('A2:G2');
+        $sheet1->mergeCells('A3:G3');
+
+        $sheet1->getStyle('A1')->getFont()->setBold(true)->setSize(14)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('1E293B'));
+        $sheet1->getStyle('A2')->getFont()->setBold(true)->setSize(11)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('4338CA'));
+        $sheet1->getStyle('A3')->getFont()->setSize(9)->setItalic(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('64748B'));
+
+        // Dinamika Summary Box
+        $sheet1->setCellValue('A5', 'RINGKASAN DINAMIKA ROMBONGAN BELAJAR');
+        $sheet1->mergeCells('A5:D5');
+        $sheet1->getStyle('A5')->getFont()->setBold(true);
+
+        $sheet1->setCellValue('A6', 'Kondisi Rombel');
+        $sheet1->setCellValue('B6', 'Laki-Laki (L)');
+        $sheet1->setCellValue('C6', 'Perempuan (P)');
+        $sheet1->setCellValue('D6', 'Total Murid');
+        $sheet1->getStyle('A6:D6')->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '4338CA']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
+        ]);
+
+        $awal = $dinamika['awal'] ?? ['total' => 0, 'l' => 0, 'p' => 0];
+        $mutasi = $dinamika['mutasi'] ?? ['total' => 0, 'l' => 0, 'p' => 0, 'daftar' => []];
+        $akhir = $dinamika['akhir'] ?? ['total' => 0, 'l' => 0, 'p' => 0];
+
+        $sheet1->setCellValue('A7', '1. Awal Semester');
+        $sheet1->setCellValue('B7', $awal['l']);
+        $sheet1->setCellValue('C7', $awal['p']);
+        $sheet1->setCellValue('D7', $awal['total']);
+
+        $sheet1->setCellValue('A8', '2. Mutasi Keluar / Mengundurkan Diri');
+        $sheet1->setCellValue('B8', $mutasi['l']);
+        $sheet1->setCellValue('C8', $mutasi['p']);
+        $sheet1->setCellValue('D8', $mutasi['total']);
+
+        $sheet1->setCellValue('A9', '3. Akhir Semester (Aktif)');
+        $sheet1->setCellValue('B9', $akhir['l']);
+        $sheet1->setCellValue('C9', $akhir['p']);
+        $sheet1->setCellValue('D9', $akhir['total']);
+
+        $sheet1->getStyle('B7:D9')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet1->getStyle('A7:D9')->applyFromArray([
+            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'CBD5E1']]],
+        ]);
+
+        // Daftar Siswa Mutasi
+        $sheet1->setCellValue('A11', 'DAFTAR SISWA KELUAR / PINDAH / MENGUNDURKAN DIRI');
+        $sheet1->mergeCells('A11:G11');
+        $sheet1->getStyle('A11')->getFont()->setBold(true);
+
+        $mHeaders = ['No', 'NISN', 'Nama Siswa', 'L/P', 'Tanggal Nonaktif', 'Alasan Mutasi', 'Catatan / Berkas'];
+        $mCols = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+        foreach ($mHeaders as $i => $mh) {
+            $sheet1->setCellValue($mCols[$i] . '12', $mh);
+        }
+        $sheet1->getStyle('A12:G12')->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'DC2626']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
+        ]);
+
+        $mRow = 13;
+        if (! empty($mutasi['daftar'])) {
+            foreach ($mutasi['daftar'] as $mIdx => $ms) {
+                $alasanLabel = ucwords(str_replace('_', ' ', $ms['alasan_nonaktif'] ?? '-'));
+                $berkasInfo = !empty($ms['file_surat_nonaktif']) ? 'Lampiran Berkas: ' . $ms['file_surat_nonaktif'] : 'Tanpa Berkas';
+                $sheet1->setCellValue('A' . $mRow, $mIdx + 1);
+                $sheet1->setCellValueExplicit('B' . $mRow, $ms['nisn'] ?? '-', DataType::TYPE_STRING);
+                $sheet1->setCellValue('C' . $mRow, $ms['nama_siswa'] ?? '-');
+                $sheet1->setCellValue('D' . $mRow, $ms['jenis_kelamin'] ?? 'L');
+                $sheet1->setCellValue('E' . $mRow, $ms['tanggal_nonaktif'] ?? '-');
+                $sheet1->setCellValue('F' . $mRow, $alasanLabel);
+                $sheet1->setCellValue('G' . $mRow, ($ms['catatan_nonaktif'] ? $ms['catatan_nonaktif'] . ' | ' : '') . $berkasInfo);
+                $mRow++;
+            }
+        } else {
+            $sheet1->setCellValue('A13', 'Tidak ada siswa mutasi / keluar pada semester ini.');
+            $sheet1->mergeCells('A13:G13');
+            $sheet1->getStyle('A13')->getFont()->setItalic(true);
+            $sheet1->getStyle('A13')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $mRow = 14;
+        }
+
+        $sheet1->getStyle("A12:G" . ($mRow - 1))->applyFromArray([
+            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'CBD5E1']]],
+        ]);
+
+        foreach (range('A', 'G') as $c) {
+            $sheet1->getColumnDimension($c)->setAutoSize(true);
+        }
+
+        // ======================================
+        // SHEET 2: SISWA BERMASALAH (RAPAT AKHIR)
+        // ======================================
+        $sheet2 = $spreadsheet->createSheet();
+        $sheet2->setTitle('Siswa Bermasalah');
+
+        $sheet2->setCellValue('A1', 'DAFTAR SISWA BERMASALAH & REKOMENDASI RAPAT AKHIR SEMESTER');
+        $sheet2->setCellValue('A2', 'KELAS: ' . strtoupper($kelas['nama_kelas'] ?? '-') . ' | ' . strtoupper($labelPeriode));
+        $sheet2->mergeCells('A1:K1');
+        $sheet2->mergeCells('A2:K2');
+        $sheet2->getStyle('A1')->getFont()->setBold(true)->setSize(13);
+        $sheet2->getStyle('A2')->getFont()->setSize(10)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('4338CA'));
+
+        $bHeaders = ['No', 'NISN', 'Nama Siswa', 'L/P', 'Hadir (H)', 'Sakit (S)', 'Izin (I)', 'Alpa (A)', 'Terlambat (T)', 'Indikator Disiplin', 'Rincian Kasus Pembinaan (Berantem/SP/Perilaku)'];
+        $bCols = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'];
+        foreach ($bHeaders as $i => $bh) {
+            $sheet2->setCellValue($bCols[$i] . '4', $bh);
+        }
+        $sheet2->getStyle('A4:K4')->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'B91C1C']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
+        ]);
+
+        $bRow = 5;
+        if (! empty($siswaBermasalah)) {
+            foreach ($siswaBermasalah as $bIdx => $bs) {
+                $statusDisiplin = [];
+                if ((int)($bs['total_a'] ?? 0) >= 3) {
+                    $statusDisiplin[] = 'Alpa Tinggi (' . $bs['total_a'] . 'x)';
+                }
+                if ((int)($bs['total_t'] ?? 0) > 3) {
+                    $statusDisiplin[] = 'Wajib Bina Terlambat (' . $bs['total_t'] . 'x)';
+                } elseif ((int)($bs['total_t'] ?? 0) > 1) {
+                    $statusDisiplin[] = 'Perhatian Terlambat (' . $bs['total_t'] . 'x)';
+                }
+                if (! empty($bs['total_kasus_sp'])) {
+                    $statusDisiplin[] = 'Ada SP / Kasus (' . $bs['total_kasus_sp'] . 'x)';
+                }
+
+                $rincianKasus = [];
+                if (! empty($bs['kasus_pembinaan'])) {
+                    foreach ($bs['kasus_pembinaan'] as $kp) {
+                        $tgl = !empty($kp['tanggal_tindakan']) ? date('d/m/Y', strtotime($kp['tanggal_tindakan'])) : '-';
+                        $tindakan = $kp['jenis_tindakan'] ?? 'Kasus Disiplin';
+                        $alasan = $kp['catatan_pembinaan'] ?? '-';
+                        $rincianKasus[] = "[{$tgl}] {$tindakan}: \"{$alasan}\"";
+                    }
+                }
+
+                $sheet2->setCellValue('A' . $bRow, $bIdx + 1);
+                $sheet2->setCellValueExplicit('B' . $bRow, $bs['nisn'] ?? '-', DataType::TYPE_STRING);
+                $sheet2->setCellValue('C' . $bRow, $bs['nama_siswa'] ?? '-');
+                $sheet2->setCellValue('D' . $bRow, $bs['jenis_kelamin'] ?? 'L');
+                $sheet2->setCellValue('E' . $bRow, $bs['total_h'] ?? 0);
+                $sheet2->setCellValue('F' . $bRow, $bs['total_s'] ?? 0);
+                $sheet2->setCellValue('G' . $bRow, $bs['total_i'] ?? 0);
+                $sheet2->setCellValue('H' . $bRow, $bs['total_a'] ?? 0);
+                $sheet2->setCellValue('I' . $bRow, $bs['total_t'] ?? 0);
+                $sheet2->setCellValue('J' . $bRow, !empty($statusDisiplin) ? implode('; ', $statusDisiplin) : 'Perhatian Kehadiran');
+                $sheet2->setCellValue('K' . $bRow, !empty($rincianKasus) ? implode("\n", $rincianKasus) : '-');
+                $sheet2->getStyle('K' . $bRow)->getAlignment()->setWrapText(true);
+                $bRow++;
+            }
+        } else {
+            $sheet2->setCellValue('A5', 'Nihil (Tidak ada siswa bermasalah / pelanggaran di ambang batas).');
+            $sheet2->mergeCells('A5:K5');
+            $sheet2->getStyle('A5')->getFont()->setItalic(true);
+            $sheet2->getStyle('A5')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $bRow = 6;
+        }
+
+        $sheet2->getStyle("A4:K" . ($bRow - 1))->applyFromArray([
+            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'CBD5E1']]],
+        ]);
+
+        foreach (range('A', 'K') as $c) {
+            $sheet2->getColumnDimension($c)->setAutoSize(true);
+        }
+
+        // ======================================
+        // SHEET 3: REKAP LENGKAP PRESENSI KELAS
+        // ======================================
+        $sheet3 = $spreadsheet->createSheet();
+        $sheet3->setTitle('Rekap Presensi');
+
+        $sheet3->setCellValue('A1', 'REKAPITULASI PRESENSI LENGKAP SEMESTER');
+        $sheet3->setCellValue('A2', 'KELAS: ' . strtoupper($kelas['nama_kelas'] ?? '-') . ' | ' . strtoupper($labelPeriode));
+        $sheet3->mergeCells('A1:J1');
+        $sheet3->mergeCells('A2:J2');
+        $sheet3->getStyle('A1')->getFont()->setBold(true)->setSize(13);
+
+        $rHeaders = ['No', 'NISN', 'Nama Lengkap', 'L/P', 'H', 'S', 'I', 'A', 'Terlambat (T)', '% Hadir'];
+        $rCols = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+        foreach ($rHeaders as $i => $rh) {
+            $sheet3->setCellValue($rCols[$i] . '4', $rh);
+        }
+        $sheet3->getStyle('A4:J4')->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1E293B']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
+        ]);
+
+        $rRow = 5;
+        foreach ($rekapSiswa as $rIdx => $rs) {
+            $h = (int)($rs['total_h'] ?? 0);
+            $s = (int)($rs['total_s'] ?? 0);
+            $i = (int)($rs['total_i'] ?? 0);
+            $a = (int)($rs['total_a'] ?? 0);
+            $tot = $h + $s + $i + $a;
+            $pct = $tot > 0 ? round(($h / $tot) * 100, 1) : 0;
+
+            $sheet3->setCellValue('A' . $rRow, $rIdx + 1);
+            $sheet3->setCellValueExplicit('B' . $rRow, $rs['nisn'] ?? '-', DataType::TYPE_STRING);
+            $sheet3->setCellValue('C' . $rRow, $rs['nama_siswa'] ?? '-');
+            $sheet3->setCellValue('D' . $rRow, $rs['jenis_kelamin'] ?? 'L');
+            $sheet3->setCellValue('E' . $rRow, $h);
+            $sheet3->setCellValue('F' . $rRow, $s);
+            $sheet3->setCellValue('G' . $rRow, $i);
+            $sheet3->setCellValue('H' . $rRow, $a);
+            $sheet3->setCellValue('I' . $rRow, (int)($rs['total_t'] ?? 0));
+            $sheet3->setCellValue('J' . $rRow, $pct . '%');
+            $rRow++;
+        }
+
+        $sheet3->getStyle("A4:J" . ($rRow - 1))->applyFromArray([
+            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'CBD5E1']]],
+        ]);
+
+        foreach (range('A', 'J') as $c) {
+            $sheet3->getColumnDimension($c)->setAutoSize(true);
+        }
+
+        $spreadsheet->setActiveSheetIndex(0);
+        $safeName = preg_replace('/[^A-Za-z0-9_-]/', '_', $kelas['nama_kelas'] ?? 'Kelas');
+        $this->outputFile($spreadsheet, 'Evaluasi_Semester_' . $safeName . '_' . date('Ymd_His') . '.xlsx');
     }
 
     /**

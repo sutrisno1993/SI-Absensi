@@ -67,6 +67,8 @@ Vagrantfile
 !/public/uploads/pembinaan/index.html
 /public/uploads/surat/*
 !/public/uploads/surat/index.html
+/public/uploads/mutasi/*
+!/public/uploads/mutasi/index.html
 
 php_errors.log
 

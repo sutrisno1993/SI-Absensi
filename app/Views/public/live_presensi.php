@@ -275,20 +275,34 @@
                         <i class="bi bi-inbox fs-1 d-block mb-2"></i> Belum ada data siswa di kelas ini.
                     </div>
                 <?php else: ?>
+                    <?php if (empty($hasExistingRecords)): ?>
+                        <div class="p-3 px-4 bg-secondary bg-opacity-10 border-bottom border-secondary border-opacity-25 d-flex align-items-center gap-2 text-light small">
+                            <i class="bi bi-info-circle-fill text-info fs-5"></i>
+                            <span>Data presensi kelas pada tanggal ini belum diisi atau telah dikosongkan. Status kehadiran akan langsung diperbarui setelah diinput oleh perwakilan kelas / wali kelas.</span>
+                        </div>
+                    <?php endif; ?>
                     <?php foreach ($daftarSiswa as $idx => $s): ?>
                         <?php
-                        $st = $s['status'] ?? 'H';
-                        $badgeClass = 'bg-success text-success';
-                        $statusLabel = 'Hadir';
-                        if ($st === 'S') {
-                            $badgeClass = 'bg-warning text-warning';
-                            $statusLabel = 'Sakit';
-                        } elseif ($st === 'I') {
-                            $badgeClass = 'bg-info text-info';
-                            $statusLabel = 'Izin';
-                        } elseif ($st === 'A') {
-                            $badgeClass = 'bg-danger text-danger';
-                            $statusLabel = 'Alpha';
+                        if (empty($hasExistingRecords) || empty($s['absensi_id'])) {
+                            $badgeClass = 'bg-secondary text-muted';
+                            $statusLabel = 'Belum Diisi';
+                        } else {
+                            $st = $s['status'] ?? 'H';
+                            $badgeClass = 'bg-success text-success';
+                            $statusLabel = 'Hadir';
+                            if ($st === 'S') {
+                                $badgeClass = 'bg-warning text-warning';
+                                $statusLabel = 'Sakit';
+                            } elseif ($st === 'I') {
+                                $badgeClass = 'bg-info text-info';
+                                $statusLabel = 'Izin';
+                            } elseif ($st === 'A') {
+                                $badgeClass = 'bg-danger text-danger';
+                                $statusLabel = 'Alpha';
+                            } elseif ($st === 'P') {
+                                $badgeClass = 'bg-primary text-info';
+                                $statusLabel = 'PKL';
+                            }
                         }
                         ?>
                         <div class="p-3 px-4 d-flex justify-content-between align-items-center student-item" data-nama="<?= strtolower(esc($s['nama_siswa'])) ?>" data-nisn="<?= esc($s['nisn']) ?>">

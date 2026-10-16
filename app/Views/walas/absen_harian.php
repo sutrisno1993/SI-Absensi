@@ -64,7 +64,7 @@
         </div>
         <?php if (!empty($hasExistingRecords)): ?>
             <button type="button" class="btn btn-sm btn-danger rounded-pill px-3 fw-bold shadow-sm" onclick="bukaModalSetNull()">
-                <i class="bi bi-trash3 me-1"></i> Hapus / Set Null Presensi Tanggal Ini
+                <i class="bi bi-trash3 me-1"></i> Kosongkan Presensi Tanggal Ini
             </button>
         <?php endif; ?>
     </div>
@@ -80,14 +80,14 @@
                     Kategori: <?= ucfirst($agendaBebasAbsen['tipe']) ?> &bull; Status KBM: Bebas Absen &bull; <?= esc($agendaBebasAbsen['keterangan'] ?? '') ?>
                 </div>
                 <div class="small text-success fw-semibold mt-1">
-                    <i class="bi bi-check-circle me-1"></i> Siswa dibebaskan dari kewajiban presensi (auto null / tidak dihitung alfa).
+                    <i class="bi bi-check-circle me-1"></i> Siswa dibebaskan dari kewajiban presensi (otomatis belum diisi / tidak dihitung alfa).
                 </div>
             </div>
         </div>
         <div class="d-flex align-items-center gap-2">
             <?php if (!empty($hasExistingRecords)): ?>
                 <button type="button" class="btn btn-sm btn-danger rounded-pill px-3 fw-bold shadow-sm" onclick="bukaModalSetNull()">
-                    <i class="bi bi-trash3 me-1"></i> Hapus / Set Null Presensi
+                    <i class="bi bi-trash3 me-1"></i> Kosongkan Presensi
                 </button>
             <?php endif; ?>
             <?php if (!empty($agendaBebasAbsen['target_kelas_id']) && (int)$agendaBebasAbsen['target_kelas_id'] === (int)$kelas['id']): ?>
@@ -131,7 +131,7 @@
                     </span>
                 <?php else: ?>
                     <span class="badge bg-secondary bg-opacity-15 text-muted border border-secondary border-opacity-25 px-2 py-2">
-                        <i class="bi bi-dash-circle me-1"></i> Belum Diisi (Null)
+                        <i class="bi bi-dash-circle me-1"></i> Belum Diisi (Kosong)
                     </span>
                 <?php endif; ?>
             </div>
@@ -139,6 +139,9 @@
                 <button type="button" class="btn btn-sm btn-outline-success fw-semibold rounded-pill px-3" onclick="setSemuaHadir()">
                     <i class="bi bi-check-all me-1"></i> Set Semua Hadir (H)
                 </button>
+                <a href="<?= site_url('walas/siswa') ?>" class="btn btn-sm btn-outline-secondary fw-semibold rounded-pill px-3" title="Kelola Siswa Aktif / Nonaktif">
+                    <i class="bi bi-people me-1"></i> Kelola Siswa Kelas
+                </a>
                 <?php if (empty($agendaBebasAbsen) && !$isSunday): ?>
                     <button type="button" class="btn btn-sm btn-outline-warning text-dark border-warning fw-semibold rounded-pill px-3" onclick="bukaModalTandaiLibur('<?= $tanggal ?>', '<?= date('d F Y', strtotime($tanggal)) ?>')">
                         <i class="bi bi-calendar-event me-1"></i> Tandai Libur / Acara
@@ -146,7 +149,7 @@
                 <?php endif; ?>
                 <?php if (!empty($hasExistingRecords)): ?>
                     <button type="button" class="btn btn-sm btn-outline-danger fw-semibold rounded-pill px-3 shadow-sm" onclick="bukaModalSetNull()">
-                        <i class="bi bi-trash3 me-1"></i> Hapus / Set Null Presensi
+                        <i class="bi bi-trash3 me-1"></i> Kosongkan Presensi
                     </button>
                 <?php endif; ?>
             </div>
@@ -176,7 +179,14 @@
                             <tr>
                                 <td class="text-center fw-semibold text-muted"><?= $idx + 1 ?></td>
                                 <td><span class="badge bg-light text-dark border font-monospace"><?= esc($s['nisn']) ?></span></td>
-                                <td class="fw-bold text-dark"><?= esc($s['nama_siswa']) ?></td>
+                                <td class="fw-bold text-dark">
+                                    <div class="d-flex align-items-center justify-content-between">
+                                        <span><?= esc($s['nama_siswa']) ?></span>
+                                        <button type="button" class="btn btn-link text-muted p-0 ms-2 text-decoration-none" onclick="nonaktifkanSiswaCepat(<?= $s['siswa_id'] ?>, '<?= esc(addslashes($s['nama_siswa'])) ?>')" title="Nonaktifkan siswa ini agar tidak muncul di absensi">
+                                            <i class="bi bi-person-x text-secondary" style="font-size: 1.05rem;"></i>
+                                        </button>
+                                    </div>
+                                </td>
                                 <td class="text-center">
                                     <?php $currentStatus = $s['absensi_id'] ? $s['status'] : null; ?>
                                     <div class="d-inline-flex gap-2">
@@ -248,7 +258,7 @@
                     <div class="alert alert-warning bg-opacity-10 border-0 rounded-3 mb-3 d-flex align-items-start gap-2">
                         <i class="bi bi-info-circle-fill text-warning fs-5 mt-1"></i>
                         <div class="small text-muted">
-                            Fitur ini digunakan jika ada kegiatan/libur (misal: <strong>Maulid Nabi, Class Meeting, HUT Sekolah, Hari Libur Bersama</strong>) yang belum tercatat oleh Admin di Kalender Pendidikan. Presensi pada tanggal ini akan dinonaktifkan (bebas absen / auto null) dan notifikasi kelewat akan langsung hilang.
+                            Fitur ini digunakan jika ada kegiatan/libur (misal: <strong>Maulid Nabi, Class Meeting, HUT Sekolah, Hari Libur Bersama</strong>) yang belum tercatat oleh Admin di Kalender Pendidikan. Presensi pada tanggal ini akan dinonaktifkan (bebas absen / otomatis belum diisi) dan notifikasi kelewat akan langsung hilang.
                         </div>
                     </div>
 
@@ -301,14 +311,14 @@
     </div>
 </div>
 
-<!-- Modal Konfirmasi Hapus / Set Null Presensi -->
+<!-- Modal Konfirmasi Kosongkan Presensi -->
 <div class="modal fade" id="modalSetNull" tabindex="-1" aria-labelledby="modalSetNullLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content card-custom border-0 shadow-lg rounded-4 overflow-hidden">
             <div class="modal-header bg-danger bg-opacity-25 border-bottom border-danger border-opacity-25 py-3">
                 <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2" id="modalSetNullLabel">
                     <i class="bi bi-trash3-fill text-danger"></i>
-                    <span>Hapus / Set Null Presensi Kelas</span>
+                    <span>Kosongkan Data Presensi Kelas</span>
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
@@ -320,7 +330,7 @@
                     <div class="alert alert-danger bg-danger bg-opacity-10 border border-danger border-opacity-25 rounded-3 mb-3 d-flex align-items-start gap-2">
                         <i class="bi bi-exclamation-triangle-fill text-danger fs-5 mt-1 flex-shrink-0"></i>
                         <div class="small text-light">
-                            Tindakan ini akan <strong>menghapus seluruh record kehadiran siswa kelas <?= esc($kelas['nama_kelas']) ?></strong> untuk tanggal ini dari database.
+                            Tindakan ini akan <strong>menghapus dan mengosongkan seluruh data presensi siswa kelas <?= esc($kelas['nama_kelas']) ?></strong> untuk tanggal ini dari database.
                         </div>
                     </div>
 
@@ -340,14 +350,14 @@
                     </div>
 
                     <p class="small text-muted mb-0">
-                        Setelah dihapus, status presensi siswa akan kembali menjadi <strong>NULL (kosong / belum diisi)</strong>, tidak akan dihitung hadir maupun alpa pada rekapitulasi, dan dokumentasi foto sesi kelas pada tanggal ini juga akan dibersihkan.
+                        Setelah dikosongkan, status presensi siswa akan kembali menjadi <strong>Belum Diisi (Kosong)</strong>, tidak akan dihitung hadir maupun alpa pada rekapitulasi, dan dokumentasi foto sesi kelas pada tanggal ini juga akan dibersihkan.
                     </p>
                 </div>
 
                 <div class="modal-footer border-0 pt-0">
                     <button type="button" class="btn btn-secondary rounded-pill px-3" data-bs-dismiss="modal">Batal</button>
                     <button type="submit" class="btn btn-danger fw-bold rounded-pill px-4 shadow">
-                        <i class="bi bi-trash3 me-1"></i> Ya, Hapus & Set Null
+                        <i class="bi bi-trash3 me-1"></i> Ya, Kosongkan Presensi
                     </button>
                 </div>
             </form>
@@ -560,5 +570,19 @@
             if (firstEmpty) firstEmpty.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
     });
+
+    // Nonaktifkan siswa langsung dari tabel presensi harian
+    function nonaktifkanSiswaCepat(siswaId, namaSiswa) {
+        if (confirm('Nonaktifkan siswa "' + namaSiswa + '"?\n\nSiswa ini tidak akan dimunculkan lagi di lembar pengisian presensi kelas.')) {
+            const form = document.getElementById('formToggleStatusCepat');
+            form.action = '<?= site_url('walas/siswa/toggle-status/') ?>' + siswaId;
+            form.submit();
+        }
+    }
 </script>
+
+<!-- Form hidden untuk aksi nonaktifkan siswa cepat -->
+<form id="formToggleStatusCepat" action="" method="POST" style="display:none;">
+    <?= csrf_field() ?>
+</form>
 <?= $this->endSection() ?>

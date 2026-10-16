@@ -45,31 +45,36 @@ class LivePresensiController extends BaseController
 
         // Ambil data presensi seluruh siswa di kelas ini pada tanggal sesi
         $daftarSiswa = $this->absensiModel->getAbsensiByDateAndKelas($tanggal, $kelasId);
+        $hasExistingRecords = !empty(array_filter($daftarSiswa, static fn($s) => !empty($s['absensi_id'])));
 
-        // Hitung statistik kehadiran
+        // Hitung statistik kehadiran (hanya jika data presensi sudah terisi)
         $countH = 0; $countS = 0; $countI = 0; $countA = 0;
-        foreach ($daftarSiswa as $s) {
-            $st = $s['status'] ?? 'H';
-            if ($st === 'H') $countH++;
-            elseif ($st === 'S') $countS++;
-            elseif ($st === 'I') $countI++;
-            elseif ($st === 'A') $countA++;
+        if ($hasExistingRecords) {
+            foreach ($daftarSiswa as $s) {
+                if (empty($s['absensi_id'])) continue;
+                $st = $s['status'] ?? 'H';
+                if ($st === 'H') $countH++;
+                elseif ($st === 'S') $countS++;
+                elseif ($st === 'I') $countI++;
+                elseif ($st === 'A') $countA++;
+            }
         }
 
         $totalSiswa = count($daftarSiswa);
-        $persenHadir = $totalSiswa > 0 ? round(($countH / $totalSiswa) * 100, 1) : 0;
+        $persenHadir = ($totalSiswa > 0 && $hasExistingRecords) ? round(($countH / $totalSiswa) * 100, 1) : 0;
 
         return view('public/live_presensi', [
-            'title'       => 'Live Presensi Siswa - ' . $sesi['nama_kelas'],
-            'sesi'        => $sesi,
-            'tanggal'     => $tanggal,
-            'daftarSiswa' => $daftarSiswa,
-            'totalSiswa'  => $totalSiswa,
-            'countH'      => $countH,
-            'countS'      => $countS,
-            'countI'      => $countI,
-            'countA'      => $countA,
-            'persenHadir' => $persenHadir,
+            'title'              => 'Live Presensi Siswa - ' . $sesi['nama_kelas'],
+            'sesi'               => $sesi,
+            'tanggal'            => $tanggal,
+            'daftarSiswa'        => $daftarSiswa,
+            'totalSiswa'         => $totalSiswa,
+            'countH'             => $countH,
+            'countS'             => $countS,
+            'countI'             => $countI,
+            'countA'             => $countA,
+            'persenHadir'        => $persenHadir,
+            'hasExistingRecords' => $hasExistingRecords,
         ]);
     }
 

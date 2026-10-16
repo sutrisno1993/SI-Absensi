@@ -867,6 +867,10 @@
                         </a>
 
                         <div class="nav-category">Laporan & Analisis</div>
+                        <a class="sidebar-link <?= str_starts_with(uri_string(), 'admin/evaluasi-semester') ? 'active' : '' ?>" href="<?= site_url('admin/evaluasi-semester') ?>">
+                            <i class="bi bi-clipboard2-data-fill"></i>
+                            <span>Evaluasi Akhir Semester</span>
+                        </a>
                         <a class="sidebar-link <?= str_starts_with(uri_string(), 'admin/monitoring') ? 'active' : '' ?>" href="<?= site_url('admin/monitoring') ?>">
                             <i class="bi bi-graph-up-arrow"></i>
                             <span>Monitoring Kehadiran</span>
@@ -891,8 +895,20 @@
                             <i class="bi bi-calendar-check"></i>
                             <span>Rekap Presensi</span>
                         </a>
+                        <a class="sidebar-link <?= str_starts_with(uri_string(), 'walas/keterlambatan') ? 'active' : '' ?>" href="<?= site_url('walas/keterlambatan') ?>">
+                            <i class="bi bi-clock-history"></i>
+                            <span>Laporan Keterlambatan</span>
+                        </a>
+                        <a class="sidebar-link <?= str_starts_with(uri_string(), 'walas/evaluasi-semester') ? 'active' : '' ?>" href="<?= site_url('walas/evaluasi-semester') ?>">
+                            <i class="bi bi-clipboard2-data-fill"></i>
+                            <span>Evaluasi Akhir Semester</span>
+                        </a>
 
                         <div class="nav-category">Siswa & Kredensial</div>
+                        <a class="sidebar-link <?= str_starts_with(uri_string(), 'walas/siswa') ? 'active' : '' ?>" href="<?= site_url('walas/siswa') ?>">
+                            <i class="bi bi-people-fill"></i>
+                            <span>Data Siswa Kelas</span>
+                        </a>
                         <a class="sidebar-link <?= str_starts_with(uri_string(), 'walas/akun-siswa') ? 'active' : '' ?>" href="<?= site_url('walas/akun-siswa') ?>">
                             <i class="bi bi-person-badge-fill"></i>
                             <span>Akun Perwakilan Kelas</span>

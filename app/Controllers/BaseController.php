@@ -40,5 +40,8 @@ abstract class BaseController extends Controller
 
         // Preload any models, libraries, etc, here.
         $this->session = service('session');
+
+        // Pastikan kolom jenis_kelamin dan mutasi selalu tersedia di database
+        (new \App\Models\SiswaModel())->ensureTableColumns();
     }
 }
