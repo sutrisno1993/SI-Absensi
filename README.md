@@ -1,20 +1,24 @@
-# CodeIgniter 4 Application Starter
+# 🏫 SI-ABSEN: Sistem Informasi Presensi & Pembinaan Siswa
+### SMK 11 Maret
 
-## What is CodeIgniter?
+Aplikasi web terpadu untuk pencatatan presensi siswa secara real-time, monitoring keterlambatan di gerbang, presensi kedatangan guru mengajar, riwayat kasus pembinaan kesiswaan, hingga evaluasi dinamika rombel pada rapat akhir semester.
 
-CodeIgniter is a PHP full-stack web framework that is light, fast, flexible and secure.
-More information can be found at the [official site](https://codeigniter.com).
+---
 
-This repository holds a composer-installable app starter.
-It has been built from the
-[development repository](https://github.com/codeigniter4/CodeIgniter4).
+## 📚 Petunjuk Penggunaan Lengkap
+Panduan operasional detail untuk setiap peran (*role*) telah disusun lengkap pada berkas:
+👉 **[PANDUAN_PENGGUNAAN.md](PANDUAN_PENGGUNAAN.md)**
 
-More information about the plans for version 4 can be found in [CodeIgniter 4](https://forum.codeigniter.com/forumdisplay.php?fid=28) on the forums.
+Daftar panduan peran yang tersedia di dalamnya:
+- 👑 **Administrator (Admin)**: Konfigurasi master guru, rombel kelas, siswa & mutasi, gender L/P, pengguna, jadwal guru, kalender libur, monitoring, riwayat pembinaan, dan rapat evaluasi semester.
+- 👨‍🏫 **Wali Kelas (Walas)**: Filter presensi rentang tanggal bebas, input & koreksi presensi susulan, penandaan libur kelas, rekapitulasi keterlambatan siswa, laporan dinamika L/P rapat semester, dan akun PJ kelas.
+- 👮‍♂️ **Guru Piket**: Absensi kedatangan guru mengajar per shift (Pagi/Siang), pencatatan siswa terlambat dengan sinkronisasi otomatis, dan share laporan WhatsApp grup.
+- 🎓 **Penanggung Jawab Kelas (PJ Kelas)**: Presensi mandiri rekan sekelas di ruang kelas, upload foto dokumentasi kelas, dan laporan WhatsApp orang tua.
+- 👨‍👩‍👧 **Orang Tua / Publik (Live Presensi)**: Monitoring real-time kehadiran kelas dan dokumentasi foto belajar tanpa perlu login.
 
-You can read the [user guide](https://codeigniter.com/user_guide/)
-corresponding to the latest version of the framework.
+---
 
-## Installation & updates
+## 🛠️ Tech Stack & Fitur Utama
 
 `composer create-project codeigniter4/appstarter` then `composer update` whenever
 there is a new release of the framework.
