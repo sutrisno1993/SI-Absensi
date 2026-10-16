@@ -32,7 +32,7 @@
                     <i class="bi bi-mortarboard-fill fs-2"></i>
                 </div>
                 <h3 class="fw-bold text-dark mb-1">Masuk SI-ABSEN</h3>
-                <p class="text-muted small"><?= $isThemeHijau ? 'Sistem Presensi SMK 11 Maret' : (str_contains($currentHost, 'osis') ? 'Portal OSIS SMK 11 Maret' : 'Sistem Informasi Presensi & Pembinaan Siswa') ?></p>
+                <p class="text-muted small"><?= $isThemeHijau ? 'Sistem Presensi SMK 11 Maret Bekasi' : (str_contains($currentHost, 'osis') ? 'Sistem Presensi SMK 11 Maret Jakarta' : 'Sistem Informasi Presensi & Pembinaan Siswa') ?></p>
             </div>
 
             <?php if (session()->getFlashdata('error')): ?>

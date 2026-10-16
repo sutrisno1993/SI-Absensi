@@ -1,7 +1,11 @@
 # 🏫 SI-ABSEN: Sistem Informasi Presensi & Pembinaan Siswa
-### SMK 11 Maret
+### SMK 11 Maret (Cabang Bekasi & Cabang Jakarta)
 
-Aplikasi web terpadu untuk pencatatan presensi siswa secara real-time, monitoring keterlambatan di gerbang, presensi kedatangan guru mengajar, riwayat kasus pembinaan kesiswaan, hingga evaluasi dinamika rombel pada rapat akhir semester.
+Aplikasi web terpadu untuk pencatatan presensi siswa secara real-time, monitoring keterlambatan di gerbang, presensi kedatangan guru mengajar, kontrol KBM kelas keliling & penanganan kelas kosong (inval/tugas), riwayat pembinaan kesiswaan, hingga evaluasi dinamika rombel pada rapat akhir semester.
+
+Aplikasi ini melayani dua cabang sekolah dengan multi-domain:
+- 🌿 **SMK 11 Maret Cabang Bekasi**: `https://presensi.smk11maret.id/` (Tema Hijau Tua / Dark Emerald)
+- 🌊 **SMK 11 Maret Cabang Jakarta**: `https://osis.smk11maret.id/` (Tema Indigo / Navy Blue)
 
 ---
 
@@ -12,7 +16,7 @@ Panduan operasional detail untuk setiap peran (*role*) telah disusun lengkap pad
 Daftar panduan peran yang tersedia di dalamnya:
 - 👑 **Administrator (Admin)**: Konfigurasi master guru, rombel kelas, siswa & mutasi, gender L/P, pengguna, jadwal guru, kalender libur, monitoring, riwayat pembinaan, dan rapat evaluasi semester.
 - 👨‍🏫 **Wali Kelas (Walas)**: Filter presensi rentang tanggal bebas, input & koreksi presensi susulan, penandaan libur kelas, rekapitulasi keterlambatan siswa, laporan dinamika L/P rapat semester, dan akun PJ kelas.
-- 👮‍♂️ **Guru Piket**: Absensi kedatangan guru mengajar per shift (Pagi/Siang), pencatatan siswa terlambat dengan sinkronisasi otomatis, dan share laporan WhatsApp grup.
+- 👮‍♂️ **Guru Piket**: Buku kendali manual tetap berjalan, pencatatan siswa terlambat gerbang (auto-sync), keliling kelas cek fisik siswa absen, absensi kedatangan guru mengajar, penanganan kelas kosong (inval/pemberian tugas), dan share laporan WhatsApp grup.
 - 🎓 **Penanggung Jawab Kelas (PJ Kelas)**: Presensi mandiri rekan sekelas di ruang kelas, upload foto dokumentasi kelas, dan laporan WhatsApp orang tua.
 - 👨‍👩‍👧 **Orang Tua / Publik (Live Presensi)**: Monitoring real-time kehadiran kelas dan dokumentasi foto belajar tanpa perlu login.
 

@@ -29,7 +29,7 @@
             $isThemeHijau = true;
         }
     ?>
-    <title><?= esc($title ?? 'SI-ABSEN') ?> - <?= $isThemeHijau ? 'SMK 11 Maret' : (str_contains($currentHost, 'osis') ? 'OSIS SMK 11 Maret' : 'Sistem Informasi Presensi & Pembinaan') ?></title>
+    <title><?= esc($title ?? 'SI-ABSEN') ?> - <?= $isThemeHijau ? 'SMK 11 Maret Bekasi' : (str_contains($currentHost, 'osis') ? 'SMK 11 Maret Jakarta' : 'Sistem Informasi Presensi & Pembinaan') ?></title>
     
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -810,7 +810,7 @@
                     </div>
                     <div class="brand-text">
                         <div class="brand-title">SI-ABSEN</div>
-                        <div class="brand-subtitle"><?= $isThemeHijau ? 'SMK 11 Maret' : (str_contains($currentHost, 'osis') ? 'OSIS SMK 11 Maret' : 'Presensi & Pembinaan') ?></div>
+                        <div class="brand-subtitle"><?= $isThemeHijau ? 'SMK 11 Maret Bekasi' : (str_contains($currentHost, 'osis') ? 'SMK 11 Maret Jakarta' : 'Presensi & Pembinaan') ?></div>
                     </div>
                 </a>
 
@@ -1008,11 +1008,11 @@
                     <div class="d-flex align-items-center gap-2">
                         <?php if ($isThemeHijau): ?>
                             <span class="badge rounded-pill px-3 py-2 bg-success bg-opacity-20 border border-success border-opacity-30 text-success d-none d-md-inline-flex align-items-center gap-2 me-1">
-                                <i class="bi bi-shield-fill-check text-success"></i> <span class="fw-semibold">SMK 11 Maret</span>
+                                <i class="bi bi-shield-fill-check text-success"></i> <span class="fw-semibold">SMK 11 Maret Bekasi</span>
                             </span>
                         <?php elseif (str_contains($currentHost, 'osis')): ?>
                             <span class="badge rounded-pill px-3 py-2 bg-primary bg-opacity-20 border border-primary border-opacity-30 text-primary d-none d-md-inline-flex align-items-center gap-2 me-1">
-                                <i class="bi bi-people-fill text-primary"></i> <span class="fw-semibold">OSIS SMK 11 Maret</span>
+                                <i class="bi bi-geo-alt-fill text-primary"></i> <span class="fw-semibold">SMK 11 Maret Jakarta</span>
                             </span>
                         <?php else: ?>
                             <span class="badge rounded-pill px-3 py-2 bg-black bg-opacity-40 border border-secondary border-opacity-25 text-info d-none d-md-inline-flex align-items-center gap-2 me-1">
