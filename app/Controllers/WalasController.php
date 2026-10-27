@@ -862,12 +862,14 @@ class WalasController extends BaseController
         $siswaPerhatian      = count(array_filter($rekapTerlambat, static fn($r) => (int)$r['total_terlambat'] > 1 && (int)$r['total_terlambat'] <= 3));
         $siswaWajibBina      = count(array_filter($rekapTerlambat, static fn($r) => (int)$r['total_terlambat'] > 3));
         $totalKejadian       = count($logTerlambat);
+        $daftarSiswa         = $this->siswaModel->getSiswaAktifByKelas($kelasId);
 
         return view('walas/keterlambatan', [
             'title'               => 'Laporan Keterlambatan Kelas ' . $kelas['nama_kelas'],
             'kelas'               => $kelas,
             'rekapTerlambat'      => $rekapTerlambat,
             'logTerlambat'        => $logTerlambat,
+            'daftarSiswa'         => $daftarSiswa,
             'startDate'           => $startDate,
             'endDate'             => $endDate,
             'totalSiswaTerlambat' => $totalSiswaTerlambat,
@@ -875,6 +877,37 @@ class WalasController extends BaseController
             'siswaWajibBina'      => $siswaWajibBina,
             'totalKejadian'       => $totalKejadian,
         ]);
+    }
+
+    /**
+     * Download Excel Rekapitulasi Keterlambatan Kelas (Wali Kelas)
+     */
+    public function exportKeterlambatanExcel()
+    {
+        $walasId = (int)$this->session->get('ref_id');
+        $kelas   = $this->kelasModel->getKelasByWalas($walasId);
+
+        if (! $kelas) {
+            return redirect()->to('/walas')->with('error', 'Kelas tidak ditemukan.');
+        }
+
+        $kelasId   = (int)$kelas['id'];
+        $startDate = $this->request->getGet('start_date') ?: date('Y-m-01');
+        $endDate   = $this->request->getGet('end_date') ?: date('Y-m-t');
+
+        $rekapTerlambat = $this->keterlambatanSiswaModel->getRekapKeterlambatanKelas($kelasId, $startDate, $endDate);
+        $logTerlambat   = $this->keterlambatanSiswaModel
+            ->select('keterlambatan_siswa.*, siswa.nama_siswa, siswa.nisn, users.username as pencatat')
+            ->join('siswa', 'siswa.id = keterlambatan_siswa.siswa_id')
+            ->join('users', 'users.id = keterlambatan_siswa.dicatat_oleh', 'left')
+            ->where('siswa.kelas_id', $kelasId)
+            ->where('keterlambatan_siswa.tanggal >=', $startDate)
+            ->where('keterlambatan_siswa.tanggal <=', $endDate)
+            ->orderBy('keterlambatan_siswa.tanggal', 'DESC')
+            ->orderBy('keterlambatan_siswa.jam_masuk', 'DESC')
+            ->findAll();
+
+        $this->exportService->exportKeterlambatanWalasExcel($kelas, $rekapTerlambat, $logTerlambat, $startDate, $endDate);
     }
 
     /**

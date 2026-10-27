@@ -1304,7 +1304,8 @@ class AdminController extends BaseController
 
         $this->pembinaanModel->insert($data);
 
-        return redirect()->to('/admin/pembinaan')->with('success', 'Catatan pembinaan siswa berhasil disimpan!');
+        $redirectTo = $this->request->getPost('redirect_to') ?: '/admin/pembinaan';
+        return redirect()->to($redirectTo)->with('success', 'Catatan pembinaan siswa berhasil disimpan!');
     }
 
     /**
@@ -1389,6 +1390,114 @@ class AdminController extends BaseController
         $keterlambatanList = $this->absensiGuruModel->getKeterlambatanList($startDate, $endDate, $guruId, $shift);
 
         return $this->exportService->exportKeterlambatanGuruExcel($keterlambatanList, $startDate, $endDate);
+    }
+
+    // ==========================================
+    // 8B. LAPORAN KETERLAMBATAN SISWA GLOBAL (ADMIN PUSAT)
+    // ==========================================
+    public function keterlambatanSiswa()
+    {
+        $startDate      = $this->request->getGet('start_date') ?: date('Y-m-01');
+        $endDate        = $this->request->getGet('end_date') ?: date('Y-m-d');
+        $kelasId        = $this->request->getGet('kelas_id') ? (int)$this->request->getGet('kelas_id') : null;
+        $statusDisiplin = $this->request->getGet('status_disiplin') ?: null;
+        $search         = $this->request->getGet('q') ? trim($this->request->getGet('q')) : null;
+        $shift          = $this->request->getGet('shift') ?: null;
+
+        // 1. Data Ringkasan Statistik KPI
+        $stats = $this->keterlambatanSiswaModel->getStatistikKeterlambatanGlobal($startDate, $endDate, $kelasId);
+
+        // 2. Tab 1: Rekap Seluruh Siswa Lintas Kelas
+        $rekapSiswa = $this->keterlambatanSiswaModel->getRekapKeterlambatanGlobal($startDate, $endDate, $kelasId, $statusDisiplin, $search);
+
+        // 3. Tab 2: Rekap Per Rombel / Analitik Ranking Kelas
+        $rekapKelas = $this->keterlambatanSiswaModel->getRekapKeterlambatanPerKelas($startDate, $endDate);
+
+        // 4. Tab 3: Log Riwayat Piket Sekolah Terpadu
+        $builderLog = $this->keterlambatanSiswaModel
+            ->select('keterlambatan_siswa.*, siswa.nama_siswa, siswa.nisn, kelas.nama_kelas, users.username as pencatat')
+            ->join('siswa', 'siswa.id = keterlambatan_siswa.siswa_id')
+            ->join('kelas', 'kelas.id = siswa.kelas_id', 'left')
+            ->join('users', 'users.id = keterlambatan_siswa.dicatat_oleh', 'left')
+            ->where('keterlambatan_siswa.tanggal >=', $startDate)
+            ->where('keterlambatan_siswa.tanggal <=', $endDate);
+
+        if ($kelasId) {
+            $builderLog->where('siswa.kelas_id', $kelasId);
+        }
+        if ($shift) {
+            $builderLog->where('keterlambatan_siswa.shift', $shift);
+        }
+        if ($search) {
+            $builderLog->groupStart()
+                       ->like('siswa.nama_siswa', $search)
+                       ->orLike('siswa.nisn', $search)
+                       ->groupEnd();
+        }
+
+        $logTerlambat = $builderLog->orderBy('keterlambatan_siswa.tanggal', 'DESC')
+                                   ->orderBy('keterlambatan_siswa.jam_masuk', 'DESC')
+                                   ->findAll();
+
+        // 5. Data Referensi Dropdown
+        $kelasList   = $this->kelasModel->orderBy('nama_kelas', 'ASC')->findAll();
+        $daftarSiswa = $this->siswaModel->select('siswa.id, siswa.nama_siswa, siswa.nisn, kelas.nama_kelas')
+                                        ->join('kelas', 'kelas.id = siswa.kelas_id', 'left')
+                                        ->where('siswa.status', 'Aktif')
+                                        ->orderBy('siswa.nama_siswa', 'ASC')
+                                        ->findAll();
+
+        return view('admin/keterlambatan_siswa', [
+            'title'          => 'Laporan Keterlambatan Siswa',
+            'startDate'      => $startDate,
+            'endDate'        => $endDate,
+            'kelasId'        => $kelasId,
+            'statusDisiplin' => $statusDisiplin,
+            'search'         => $search,
+            'shift'          => $shift,
+            'stats'          => $stats,
+            'rekapSiswa'     => $rekapSiswa,
+            'rekapKelas'     => $rekapKelas,
+            'logTerlambat'   => $logTerlambat,
+            'kelasList'      => $kelasList,
+            'daftarSiswa'    => $daftarSiswa,
+        ]);
+    }
+
+    public function exportKeterlambatanSiswaExcel()
+    {
+        $startDate      = $this->request->getGet('start_date') ?: date('Y-m-01');
+        $endDate        = $this->request->getGet('end_date') ?: date('Y-m-d');
+        $kelasId        = $this->request->getGet('kelas_id') ? (int)$this->request->getGet('kelas_id') : null;
+        $statusDisiplin = $this->request->getGet('status_disiplin') ?: null;
+        $search         = $this->request->getGet('q') ? trim($this->request->getGet('q')) : null;
+
+        $stats      = $this->keterlambatanSiswaModel->getStatistikKeterlambatanGlobal($startDate, $endDate, $kelasId);
+        $rekapSiswa = $this->keterlambatanSiswaModel->getRekapKeterlambatanGlobal($startDate, $endDate, $kelasId, $statusDisiplin, $search);
+        $rekapKelas = $this->keterlambatanSiswaModel->getRekapKeterlambatanPerKelas($startDate, $endDate);
+
+        $builderLog = $this->keterlambatanSiswaModel
+            ->select('keterlambatan_siswa.*, siswa.nama_siswa, siswa.nisn, kelas.nama_kelas, users.username as pencatat')
+            ->join('siswa', 'siswa.id = keterlambatan_siswa.siswa_id')
+            ->join('kelas', 'kelas.id = siswa.kelas_id', 'left')
+            ->join('users', 'users.id = keterlambatan_siswa.dicatat_oleh', 'left')
+            ->where('keterlambatan_siswa.tanggal >=', $startDate)
+            ->where('keterlambatan_siswa.tanggal <=', $endDate);
+
+        if ($kelasId) {
+            $builderLog->where('siswa.kelas_id', $kelasId);
+        }
+        $logTerlambat = $builderLog->orderBy('keterlambatan_siswa.tanggal', 'DESC')
+                                   ->orderBy('keterlambatan_siswa.jam_masuk', 'DESC')
+                                   ->findAll();
+
+        $namaKelas = null;
+        if ($kelasId) {
+            $k = $this->kelasModel->find($kelasId);
+            $namaKelas = $k['nama_kelas'] ?? null;
+        }
+
+        return $this->exportService->exportKeterlambatanSiswaGlobalExcel($stats, $rekapKelas, $rekapSiswa, $logTerlambat, $startDate, $endDate, $namaKelas);
     }
 
     // ==========================================

@@ -1084,6 +1084,415 @@ class ExportService
     }
 
     /**
+     * Export Laporan Keterlambatan Kelas (Akun Walas) ke Excel
+     */
+    public function exportKeterlambatanWalasExcel(array $kelas, array $rekapTerlambat, array $logTerlambat, string $startDate, string $endDate): void
+    {
+        $spreadsheet = new Spreadsheet();
+
+        // ----------------- SHEET 1: REKAP SISWA KELAS -----------------
+        $sheet1 = $spreadsheet->getActiveSheet();
+        $sheet1->setTitle('Rekap Siswa');
+
+        $namaKelas = $kelas['nama_kelas'] ?? '-';
+        $sheet1->setCellValue('A1', 'SISTEM INFORMASI PRESENSI & PEMBINAAN SISWA (SI-ABSEN)');
+        $sheet1->setCellValue('A2', 'LAPORAN REKAPITULASI KETERLAMBATAN SISWA - KELAS ' . strtoupper($namaKelas));
+        $sheet1->setCellValue('A3', 'Periode: ' . date('d/m/Y', strtotime($startDate)) . ' s/d ' . date('d/m/Y', strtotime($endDate)) . ' | Dicetak: ' . date('d F Y, H:i') . ' WIB');
+
+        $sheet1->mergeCells('A1:H1');
+        $sheet1->mergeCells('A2:H2');
+        $sheet1->mergeCells('A3:H3');
+
+        $sheet1->getStyle('A1')->getFont()->setBold(true)->setSize(13)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('1E293B'));
+        $sheet1->getStyle('A2')->getFont()->setBold(true)->setSize(11)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('B91C1C'));
+        $sheet1->getStyle('A3')->getFont()->setSize(9)->setItalic(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('64748B'));
+
+        $headers1 = ['No', 'NISN', 'Nama Siswa', 'L/P', 'Total Terlambat', 'Total Durasi (Menit)', 'Riwayat Tanggal', 'Status Disiplin'];
+        $col = 'A';
+        foreach ($headers1 as $h) {
+            $sheet1->setCellValue($col . '5', $h);
+            $col++;
+        }
+
+        $sheet1->getStyle('A5:H5')->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'B91C1C']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+        ]);
+        $sheet1->getRowDimension(5)->setRowHeight(26);
+
+        $row1 = 6;
+        $totalKejadian = 0;
+        $totalDurasi = 0;
+
+        foreach ($rekapTerlambat as $idx => $r) {
+            $totT = (int)$r['total_terlambat'];
+            $totM = (int)$r['total_menit'];
+            $totalKejadian += $totT;
+            $totalDurasi += $totM;
+
+            $statusText = 'Tertib';
+            if ($totT > 3) {
+                $statusText = 'Wajib Pembinaan (>3x)';
+            } elseif ($totT > 1) {
+                $statusText = 'Perlu Perhatian (>1x)';
+            } elseif ($totT === 1) {
+                $statusText = 'Tercatat 1x';
+            }
+
+            $sheet1->setCellValue('A' . $row1, $idx + 1);
+            $sheet1->setCellValueExplicit('B' . $row1, $r['nisn'] ?? '-', DataType::TYPE_STRING);
+            $sheet1->setCellValue('C' . $row1, $r['nama_siswa'] ?? '-');
+            $sheet1->setCellValue('D' . $row1, $r['jenis_kelamin'] ?? 'L');
+            $sheet1->setCellValue('E' . $row1, $totT > 0 ? $totT . ' Kali' : '0');
+            $sheet1->setCellValue('F' . $row1, $totM > 0 ? $totM : 0);
+            $sheet1->setCellValue('G' . $row1, !empty($r['riwayat_tgl']) ? $r['riwayat_tgl'] : '-');
+            $sheet1->setCellValue('H' . $row1, $statusText);
+
+            $sheet1->getStyle('A' . $row1)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet1->getStyle('B' . $row1)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet1->getStyle('D' . $row1)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet1->getStyle('E' . $row1)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet1->getStyle('F' . $row1)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet1->getStyle('H' . $row1)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+            // Highlight jika perlu pembinaan
+            if ($totT > 3) {
+                $sheet1->getStyle('A' . $row1 . ':H' . $row1)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FEE2E2');
+            } elseif ($totT > 1) {
+                $sheet1->getStyle('A' . $row1 . ':H' . $row1)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FEF3C7');
+            }
+
+            $row1++;
+        }
+
+        // Baris Total
+        $sheet1->setCellValue('A' . $row1, 'TOTAL KELAS');
+        $sheet1->mergeCells('A' . $row1 . ':D' . $row1);
+        $sheet1->setCellValue('E' . $row1, $totalKejadian . ' Kejadian');
+        $sheet1->setCellValue('F' . $row1, $totalDurasi . ' Menit');
+        $sheet1->mergeCells('G' . $row1 . ':H' . $row1);
+
+        $sheet1->getStyle('A' . $row1 . ':H' . $row1)->applyFromArray([
+            'font' => ['bold' => true],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'F1F5F9']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+        ]);
+
+        $sheet1->getStyle('A5:H' . $row1)->applyFromArray([
+            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'CBD5E1']]],
+        ]);
+
+        foreach (range('A', 'H') as $c) {
+            $sheet1->getColumnDimension($c)->setAutoSize(true);
+        }
+
+        // ----------------- SHEET 2: RIWAYAT LOG HARIAN PIKET -----------------
+        $sheet2 = $spreadsheet->createSheet();
+        $sheet2->setTitle('Riwayat Log Piket');
+
+        $sheet2->setCellValue('A1', 'CATATAN LOG HARIAN GURU PIKET - KELAS ' . strtoupper($namaKelas));
+        $sheet2->setCellValue('A2', 'Periode: ' . date('d/m/Y', strtotime($startDate)) . ' s/d ' . date('d/m/Y', strtotime($endDate)));
+        $sheet2->mergeCells('A1:I1');
+        $sheet2->mergeCells('A2:I2');
+        $sheet2->getStyle('A1')->getFont()->setBold(true)->setSize(12)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('1E293B'));
+        $sheet2->getStyle('A2')->getFont()->setSize(9)->setItalic(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('64748B'));
+
+        $headers2 = ['No', 'Tanggal', 'Jam Kedatangan', 'NISN', 'Nama Siswa', 'Terlambat (Menit)', 'Alasan Siswa', 'Tindakan Piket', 'Petugas Pencatat'];
+        $col2 = 'A';
+        foreach ($headers2 as $h) {
+            $sheet2->setCellValue($col2 . '4', $h);
+            $col2++;
+        }
+
+        $sheet2->getStyle('A4:I4')->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '475569']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+        ]);
+        $sheet2->getRowDimension(4)->setRowHeight(24);
+
+        $row2 = 5;
+        if (empty($logTerlambat)) {
+            $sheet2->setCellValue('A5', 'Tidak ada catatan insiden keterlambatan pada periode ini.');
+            $sheet2->mergeCells('A5:I5');
+            $sheet2->getStyle('A5')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet2->getStyle('A5')->getFont()->setItalic(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('94A3B8'));
+            $row2++;
+        } else {
+            foreach ($logTerlambat as $lIdx => $log) {
+                $sheet2->setCellValue('A' . $row2, $lIdx + 1);
+                $sheet2->setCellValue('B' . $row2, date('d/m/Y', strtotime($log['tanggal'])));
+                $sheet2->setCellValue('C' . $row2, $log['jam_masuk'] ?? '-');
+                $sheet2->setCellValueExplicit('D' . $row2, $log['nisn'] ?? '-', DataType::TYPE_STRING);
+                $sheet2->setCellValue('E' . $row2, $log['nama_siswa'] ?? '-');
+                $sheet2->setCellValue('F' . $row2, (int)($log['menit_terlambat'] ?? 0));
+                $sheet2->setCellValue('G' . $row2, $log['alasan'] ?? '-');
+                $sheet2->setCellValue('H' . $row2, $log['tindakan'] ?? '-');
+                $sheet2->setCellValue('I' . $row2, $log['pencatat'] ?? 'Guru Piket');
+
+                $sheet2->getStyle('A' . $row2)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                $sheet2->getStyle('B' . $row2)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                $sheet2->getStyle('C' . $row2)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                $sheet2->getStyle('D' . $row2)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                $sheet2->getStyle('F' . $row2)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+                $row2++;
+            }
+        }
+
+        $sheet2->getStyle('A4:I' . ($row2 - 1))->applyFromArray([
+            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'CBD5E1']]],
+        ]);
+
+        foreach (range('A', 'I') as $c) {
+            $sheet2->getColumnDimension($c)->setAutoSize(true);
+        }
+
+        $spreadsheet->setActiveSheetIndex(0);
+        $safeName = preg_replace('/[^A-Za-z0-9_-]/', '_', $namaKelas);
+        $this->outputFile($spreadsheet, 'Laporan_Keterlambatan_Kelas_' . $safeName . '_' . date('Ymd_His') . '.xlsx');
+    }
+
+    /**
+     * Export Laporan Keterlambatan Siswa Global (Akun Admin Pusat) ke Excel (Multi-Sheet)
+     */
+    public function exportKeterlambatanSiswaGlobalExcel(array $stats, array $rekapKelas, array $rekapSiswa, array $logTerlambat, string $startDate, string $endDate, ?string $namaKelas = null): void
+    {
+        $spreadsheet = new Spreadsheet();
+
+        // ----------------- SHEET 1: RINGKASAN & RANKING ROMBEL -----------------
+        $sheet1 = $spreadsheet->getActiveSheet();
+        $sheet1->setTitle('Ranking Rombel');
+
+        $subTitle = $namaKelas ? "KHUSUS KELAS {$namaKelas}" : 'SELURUH ROMBEL SEKOLAH';
+        $sheet1->setCellValue('A1', 'SISTEM INFORMASI PRESENSI & PEMBINAAN SISWA (SI-ABSEN)');
+        $sheet1->setCellValue('A2', 'LAPORAN KETERLAMBATAN SISWA GLOBAL - ' . $subTitle);
+        $sheet1->setCellValue('A3', 'Periode: ' . date('d/m/Y', strtotime($startDate)) . ' s/d ' . date('d/m/Y', strtotime($endDate)) . ' | Dicetak: ' . date('d F Y, H:i') . ' WIB');
+
+        $sheet1->mergeCells('A1:I1');
+        $sheet1->mergeCells('A2:I2');
+        $sheet1->mergeCells('A3:I3');
+
+        $sheet1->getStyle('A1')->getFont()->setBold(true)->setSize(14)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('1E293B'));
+        $sheet1->getStyle('A2')->getFont()->setBold(true)->setSize(11)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('B91C1C'));
+        $sheet1->getStyle('A3')->getFont()->setSize(9)->setItalic(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('64748B'));
+
+        // KPI Summary Box
+        $sheet1->setCellValue('A5', 'RINGKASAN EKSEKUTIF SEKOLAH');
+        $sheet1->getStyle('A5')->getFont()->setBold(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('1E293B'));
+
+        $sheet1->setCellValue('A6', 'Total Insiden Keterlambatan:');
+        $sheet1->setCellValue('B6', ($stats['total_kejadian'] ?? 0) . ' Kejadian');
+        $sheet1->setCellValue('D6', 'Total Siswa Terlambat:');
+        $sheet1->setCellValue('E6', ($stats['total_siswa_terlambat'] ?? 0) . ' Siswa');
+
+        $sheet1->setCellValue('A7', 'Perlu Perhatian (2-3x):');
+        $sheet1->setCellValue('B7', ($stats['siswa_perhatian'] ?? 0) . ' Siswa');
+        $sheet1->setCellValue('D7', 'Wajib Pembinaan (>3x):');
+        $sheet1->setCellValue('E7', ($stats['siswa_wajib_bina'] ?? 0) . ' Siswa');
+
+        $sheet1->getStyle('A6:E7')->applyFromArray([
+            'font' => ['bold' => true],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'F8FAFC']],
+            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'E2E8F0']]],
+        ]);
+
+        // Table Header Ranking Kelas
+        $headersK = ['No / Rank', 'Nama Kelas', 'Shift', 'Wali Kelas', 'Total Siswa Kelas', 'Siswa Terlambat', 'Total Kejadian', 'Total Durasi (Menit)', 'Tingkat Keterlambatan (%)'];
+        $colK = 'A';
+        foreach ($headersK as $h) {
+            $sheet1->setCellValue($colK . '9', $h);
+            $colK++;
+        }
+
+        $sheet1->getStyle('A9:I9')->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'B91C1C']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+        ]);
+        $sheet1->getRowDimension(9)->setRowHeight(26);
+
+        $rowK = 10;
+        foreach ($rekapKelas as $idx => $rk) {
+            $totSiswa = (int)($rk['total_siswa_kelas'] ?? 0);
+            $totLate = (int)($rk['total_siswa_terlambat'] ?? 0);
+            $pct = $totSiswa > 0 ? round(($totLate / $totSiswa) * 100, 1) : 0;
+
+            $sheet1->setCellValue('A' . $rowK, $idx + 1);
+            $sheet1->setCellValue('B' . $rowK, $rk['nama_kelas'] ?? '-');
+            $sheet1->setCellValue('C' . $rowK, $rk['shift'] ?? 'Pagi');
+            $sheet1->setCellValue('D' . $rowK, $rk['nama_walas'] ?? '-');
+            $sheet1->setCellValue('E' . $rowK, $totSiswa);
+            $sheet1->setCellValue('F' . $rowK, $totLate);
+            $sheet1->setCellValue('G' . $rowK, (int)($rk['total_kejadian'] ?? 0));
+            $sheet1->setCellValue('H' . $rowK, (int)($rk['total_menit'] ?? 0));
+            $sheet1->setCellValue('I' . $rowK, $pct . '%');
+
+            $sheet1->getStyle('A' . $rowK)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet1->getStyle('C' . $rowK)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet1->getStyle('E' . $rowK)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet1->getStyle('F' . $rowK)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet1->getStyle('G' . $rowK)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet1->getStyle('H' . $rowK)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet1->getStyle('I' . $rowK)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+            if ($totLate > 5) {
+                $sheet1->getStyle('A' . $rowK . ':I' . $rowK)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FFF1F2');
+            }
+
+            $rowK++;
+        }
+
+        $sheet1->getStyle('A9:I' . ($rowK - 1))->applyFromArray([
+            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'CBD5E1']]],
+        ]);
+
+        foreach (range('A', 'I') as $c) {
+            $sheet1->getColumnDimension($c)->setAutoSize(true);
+        }
+
+        // ----------------- SHEET 2: REKAP SELURUH SISWA -----------------
+        $sheet2 = $spreadsheet->createSheet();
+        $sheet2->setTitle('Rekap Siswa');
+
+        $sheet2->setCellValue('A1', 'REKAPITULASI KETERLAMBATAN SISWA LINTAS ROMBEL');
+        $sheet2->setCellValue('A2', 'Periode: ' . date('d/m/Y', strtotime($startDate)) . ' s/d ' . date('d/m/Y', strtotime($endDate)));
+        $sheet2->mergeCells('A1:I1');
+        $sheet2->mergeCells('A2:I2');
+        $sheet2->getStyle('A1')->getFont()->setBold(true)->setSize(13)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('1E293B'));
+        $sheet2->getStyle('A2')->getFont()->setSize(9)->setItalic(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('64748B'));
+
+        $headersS = ['No', 'NISN', 'Nama Siswa', 'Kelas', 'L/P', 'Total Terlambat', 'Total Menit', 'Riwayat Tanggal', 'Status Disiplin'];
+        $colS = 'A';
+        foreach ($headersS as $h) {
+            $sheet2->setCellValue($colS . '4', $h);
+            $colS++;
+        }
+
+        $sheet2->getStyle('A4:I4')->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1E293B']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+        ]);
+        $sheet2->getRowDimension(4)->setRowHeight(25);
+
+        $rowS = 5;
+        foreach ($rekapSiswa as $sIdx => $rs) {
+            $totT = (int)$rs['total_terlambat'];
+            $statusText = 'Tertib';
+            if ($totT > 3) {
+                $statusText = 'Wajib Pembinaan (>3x)';
+            } elseif ($totT > 1) {
+                $statusText = 'Perlu Perhatian (>1x)';
+            } elseif ($totT === 1) {
+                $statusText = 'Tercatat 1x';
+            }
+
+            $sheet2->setCellValue('A' . $rowS, $sIdx + 1);
+            $sheet2->setCellValueExplicit('B' . $rowS, $rs['nisn'] ?? '-', DataType::TYPE_STRING);
+            $sheet2->setCellValue('C' . $rowS, $rs['nama_siswa'] ?? '-');
+            $sheet2->setCellValue('D' . $rowS, $rs['nama_kelas'] ?? '-');
+            $sheet2->setCellValue('E' . $rowS, $rs['jenis_kelamin'] ?? 'L');
+            $sheet2->setCellValue('F' . $rowS, $totT > 0 ? $totT . ' Kali' : '0');
+            $sheet2->setCellValue('G' . $rowS, (int)$rs['total_menit']);
+            $sheet2->setCellValue('H' . $rowS, !empty($rs['riwayat_tgl']) ? $rs['riwayat_tgl'] : '-');
+            $sheet2->setCellValue('I' . $rowS, $statusText);
+
+            $sheet2->getStyle('A' . $rowS)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet2->getStyle('B' . $rowS)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet2->getStyle('D' . $rowS)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet2->getStyle('E' . $rowS)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet2->getStyle('F' . $rowS)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet2->getStyle('G' . $rowS)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet2->getStyle('I' . $rowS)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+            if ($totT > 3) {
+                $sheet2->getStyle('A' . $rowS . ':I' . $rowS)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FEE2E2');
+            } elseif ($totT > 1) {
+                $sheet2->getStyle('A' . $rowS . ':I' . $rowS)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FEF3C7');
+            }
+
+            $rowS++;
+        }
+
+        $sheet2->getStyle('A4:I' . ($rowS - 1))->applyFromArray([
+            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'CBD5E1']]],
+        ]);
+
+        foreach (range('A', 'I') as $c) {
+            $sheet2->getColumnDimension($c)->setAutoSize(true);
+        }
+
+        // ----------------- SHEET 3: RIWAYAT DETAIL LOG PIKET -----------------
+        $sheet3 = $spreadsheet->createSheet();
+        $sheet3->setTitle('Log Harian Piket');
+
+        $sheet3->setCellValue('A1', 'CATATAN LOG HARIAN GURU PIKET SEKOLAH');
+        $sheet3->setCellValue('A2', 'Periode: ' . date('d/m/Y', strtotime($startDate)) . ' s/d ' . date('d/m/Y', strtotime($endDate)));
+        $sheet3->mergeCells('A1:J1');
+        $sheet3->mergeCells('A2:J2');
+        $sheet3->getStyle('A1')->getFont()->setBold(true)->setSize(12)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('1E293B'));
+        $sheet3->getStyle('A2')->getFont()->setSize(9)->setItalic(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('64748B'));
+
+        $headersL = ['No', 'Tanggal', 'Jam Masuk', 'NISN', 'Nama Siswa', 'Kelas', 'Terlambat (Menit)', 'Alasan Siswa', 'Tindakan Piket', 'Petugas Pencatat'];
+        $colL = 'A';
+        foreach ($headersL as $h) {
+            $sheet3->setCellValue($colL . '4', $h);
+            $colL++;
+        }
+
+        $sheet3->getStyle('A4:J4')->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '475569']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+        ]);
+        $sheet3->getRowDimension(4)->setRowHeight(24);
+
+        $rowL = 5;
+        if (empty($logTerlambat)) {
+            $sheet3->setCellValue('A5', 'Tidak ada catatan insiden keterlambatan pada periode ini.');
+            $sheet3->mergeCells('A5:J5');
+            $sheet3->getStyle('A5')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet3->getStyle('A5')->getFont()->setItalic(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('94A3B8'));
+            $rowL++;
+        } else {
+            foreach ($logTerlambat as $lIdx => $log) {
+                $sheet3->setCellValue('A' . $rowL, $lIdx + 1);
+                $sheet3->setCellValue('B' . $rowL, date('d/m/Y', strtotime($log['tanggal'])));
+                $sheet3->setCellValue('C' . $rowL, $log['jam_masuk'] ?? '-');
+                $sheet3->setCellValueExplicit('D' . $rowL, $log['nisn'] ?? '-', DataType::TYPE_STRING);
+                $sheet3->setCellValue('E' . $rowL, $log['nama_siswa'] ?? '-');
+                $sheet3->setCellValue('F' . $rowL, $log['nama_kelas'] ?? '-');
+                $sheet3->setCellValue('G' . $rowL, (int)($log['menit_terlambat'] ?? 0));
+                $sheet3->setCellValue('H' . $rowL, $log['alasan'] ?? '-');
+                $sheet3->setCellValue('I' . $rowL, $log['tindakan'] ?? '-');
+                $sheet3->setCellValue('J' . $rowL, $log['pencatat'] ?? 'Guru Piket');
+
+                $sheet3->getStyle('A' . $rowL)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                $sheet3->getStyle('B' . $rowL)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                $sheet3->getStyle('C' . $rowL)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                $sheet3->getStyle('D' . $rowL)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                $sheet3->getStyle('F' . $rowL)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                $sheet3->getStyle('G' . $rowL)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+                $rowL++;
+            }
+        }
+
+        $sheet3->getStyle('A4:J' . ($rowL - 1))->applyFromArray([
+            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'CBD5E1']]],
+        ]);
+
+        foreach (range('A', 'J') as $c) {
+            $sheet3->getColumnDimension($c)->setAutoSize(true);
+        }
+
+        $spreadsheet->setActiveSheetIndex(0);
+        $this->outputFile($spreadsheet, 'Laporan_Keterlambatan_Siswa_Global_' . date('Ymd_His') . '.xlsx');
+    }
+
+    /**
      * Stream File Spreadsheet ke Browser
      */
     protected function outputFile(Spreadsheet $spreadsheet, string $fileName): void

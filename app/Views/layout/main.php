@@ -881,6 +881,10 @@
                         </a>
 
                         <div class="nav-category">Laporan & Analisis</div>
+                        <a class="sidebar-link <?= str_starts_with(uri_string(), 'admin/keterlambatan-siswa') ? 'active' : '' ?>" href="<?= site_url('admin/keterlambatan-siswa') ?>">
+                            <i class="bi bi-clock-history"></i>
+                            <span>Laporan Keterlambatan</span>
+                        </a>
                         <a class="sidebar-link <?= str_starts_with(uri_string(), 'admin/evaluasi-semester') ? 'active' : '' ?>" href="<?= site_url('admin/evaluasi-semester') ?>">
                             <i class="bi bi-clipboard2-data-fill"></i>
                             <span>Evaluasi Akhir Semester</span>

@@ -84,6 +84,10 @@ $routes->group('admin', ['filter' => ['auth', 'role:admin']], static function ($
     $routes->post('keterlambatan-guru/pengaturan', 'AdminController::simpanPengaturanJam');
     $routes->get('keterlambatan-guru/export-excel', 'AdminController::exportKeterlambatanGuruExcel');
 
+    // Laporan Keterlambatan Siswa Global (Multi-Rombel)
+    $routes->get('keterlambatan-siswa', 'AdminController::keterlambatanSiswa');
+    $routes->get('keterlambatan-siswa/export-excel', 'AdminController::exportKeterlambatanSiswaExcel');
+
     // Kalender Pendidikan & Hari Libur Sekolah
     $routes->get('kalender-pendidikan', 'AdminController::kalenderPendidikan');
     $routes->post('kalender-pendidikan/simpan', 'AdminController::simpanKalenderPendidikan');
@@ -123,6 +127,7 @@ $routes->group('walas', ['filter' => ['auth', 'role:walas', 'force_change_pwd']]
     
     // Laporan Keterlambatan Kelas Siswa
     $routes->get('keterlambatan', 'WalasController::keterlambatan');
+    $routes->get('keterlambatan/export-excel', 'WalasController::exportKeterlambatanExcel');
 
     // Evaluasi Rombel Rapat Akhir Semester
     $routes->get('evaluasi-semester', 'WalasController::evaluasiSemester');
