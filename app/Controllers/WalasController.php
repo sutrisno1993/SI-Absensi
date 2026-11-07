@@ -7,6 +7,7 @@ use App\Models\KelasModel;
 use App\Models\PembinaanModel;
 use App\Models\SiswaModel;
 use App\Models\KeterlambatanSiswaModel;
+use App\Models\UserModel;
 use App\Services\ExportService;
 
 class WalasController extends BaseController
@@ -16,6 +17,7 @@ class WalasController extends BaseController
     protected $pembinaanModel;
     protected $siswaModel;
     protected $keterlambatanSiswaModel;
+    protected $userModel;
     protected $exportService;
 
     public function __construct()
@@ -25,6 +27,7 @@ class WalasController extends BaseController
         $this->pembinaanModel          = new PembinaanModel();
         $this->siswaModel              = new SiswaModel();
         $this->keterlambatanSiswaModel = new KeterlambatanSiswaModel();
+        $this->userModel               = new UserModel();
         $this->exportService           = new ExportService();
     }
 
@@ -642,6 +645,85 @@ class WalasController extends BaseController
         }
 
         return redirect()->back()->with('error', 'Agenda libur tidak dapat dibatalkan atau bukan dibuat khusus untuk kelas/tingkat Anda.');
+    }
+
+    /**
+     * Tambah atau Edit Data Siswa oleh Wali Kelas (Hanya untuk kelas binaannya)
+     */
+    public function simpanSiswa()
+    {
+        $walasId = (int)$this->session->get('ref_id');
+        $kelas   = $this->kelasModel->getKelasByWalas($walasId);
+
+        if (! $kelas) {
+            return redirect()->to('/walas')->with('error', 'Anda tidak memiliki kelas ampu.');
+        }
+
+        $kelasId = (int)$kelas['id'];
+        $id      = $this->request->getPost('id');
+        $nisn    = trim((string)$this->request->getPost('nisn'));
+        $status  = $this->request->getPost('status') ?: 'Aktif';
+
+        // Validasi
+        $rules = [
+            'nisn'          => 'required|trim|is_unique[siswa.nisn,id,' . ($id ?: 0) . ']',
+            'nama_siswa'    => 'required|trim',
+            'jenis_kelamin' => 'required|in_list[L,P]',
+            'status'        => 'permit_empty|in_list[Aktif,Nonaktif]',
+        ];
+
+        if (! $this->validate($rules)) {
+            return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
+        }
+
+        $data = [
+            'nisn'          => $nisn,
+            'nama_siswa'    => trim((string)$this->request->getPost('nama_siswa')),
+            'jenis_kelamin' => $this->request->getPost('jenis_kelamin') === 'P' ? 'P' : 'L',
+            'kelas_id'      => $kelasId, // Terkunci otomatis ke kelas binaan wali kelas
+            'status'        => in_array($status, ['Aktif', 'Nonaktif']) ? $status : 'Aktif',
+        ];
+
+        if (! empty($id)) {
+            // Pastikan siswa yang diedit benar-benar siswa di kelas walas ini
+            $siswaLama = $this->siswaModel->where('id', (int)$id)->where('kelas_id', $kelasId)->first();
+            if (! $siswaLama) {
+                return redirect()->back()->with('error', 'Siswa tidak ditemukan atau bukan anggota kelas Anda.');
+            }
+
+            $this->siswaModel->update((int)$id, $data);
+
+            // Jika NISN berubah, sinkronkan username akun login
+            if ($siswaLama['nisn'] !== $nisn) {
+                $userAkun = $this->userModel->where('username', $siswaLama['nisn'])->first();
+                if ($userAkun) {
+                    $this->userModel->update($userAkun['id'], [
+                        'username'      => $nisn,
+                        'password_hash' => password_hash($nisn, PASSWORD_BCRYPT),
+                    ]);
+                }
+            }
+
+            $msg = "Data siswa \"{$data['nama_siswa']}\" berhasil diperbarui!";
+        } else {
+            // Tambah baru
+            $this->siswaModel->insert($data);
+
+            // Buat akun login siswa default (Username & Password: NISN) jika belum ada
+            if (! $this->userModel->where('username', $nisn)->first()) {
+                $this->userModel->insert([
+                    'username'       => $nisn,
+                    'password_hash'  => password_hash($nisn, PASSWORD_BCRYPT),
+                    'role'           => 'pj_kelas',
+                    'is_first_login' => 0,
+                    'ref_id'         => $kelasId,
+                ]);
+            }
+
+            $msg = "Siswa baru \"{$data['nama_siswa']}\" berhasil ditambahkan ke kelas {$kelas['nama_kelas']}!";
+        }
+
+        return redirect()->to('/walas/siswa')->with('success', $msg);
     }
 
     /**

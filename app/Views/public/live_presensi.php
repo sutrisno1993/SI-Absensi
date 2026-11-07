@@ -116,7 +116,15 @@
             font-weight: 700;
             padding: 0.35rem 0.75rem;
             border-radius: 50rem;
+            display: inline-flex;
+            align-items: center;
+            white-space: nowrap;
         }
+
+        /* Perbaikan agar teks badge tidak tertimpa/tenggelam warna pekat */
+        .bg-opacity-15 { --bs-bg-opacity: 0.15 !important; }
+        .bg-opacity-20 { --bs-bg-opacity: 0.20 !important; }
+        .border-opacity-30 { --bs-border-opacity: 0.30 !important; }
 
         .student-item {
             border-bottom: 1px solid rgba(255, 255, 255, 0.05);
@@ -295,23 +303,24 @@
                     <?php foreach ($daftarSiswa as $idx => $s): ?>
                         <?php
                         if (empty($hasExistingRecords) || empty($s['absensi_id'])) {
-                            $badgeClass = 'bg-secondary text-muted';
+                            $st = null;
+                            $badgeClass = 'bg-secondary text-light border-secondary';
                             $statusLabel = 'Belum Diisi';
                         } else {
                             $st = $s['status'] ?? 'H';
-                            $badgeClass = 'bg-success text-success';
+                            $badgeClass = 'bg-success text-success border-success';
                             $statusLabel = 'Hadir';
                             if ($st === 'S') {
-                                $badgeClass = 'bg-warning text-warning';
+                                $badgeClass = 'bg-warning text-warning border-warning';
                                 $statusLabel = 'Sakit';
                             } elseif ($st === 'I') {
-                                $badgeClass = 'bg-info text-info';
+                                $badgeClass = 'bg-info text-info border-info';
                                 $statusLabel = 'Izin';
                             } elseif ($st === 'A') {
-                                $badgeClass = 'bg-danger text-danger';
+                                $badgeClass = 'bg-danger text-danger border-danger';
                                 $statusLabel = 'Alpha';
                             } elseif ($st === 'P') {
-                                $badgeClass = 'bg-primary text-info';
+                                $badgeClass = 'bg-primary text-info border-primary';
                                 $statusLabel = 'PKL';
                             }
                         }
@@ -333,12 +342,16 @@
                             </div>
                             <div>
                                 <span class="status-badge-pill <?= $badgeClass ?> bg-opacity-15 border border-opacity-30">
-                                    <?php if ($st === 'H'): ?>
+                                    <?php if ($st === null): ?>
+                                        <i class="bi bi-dash-circle me-1"></i> Belum Diisi
+                                    <?php elseif ($st === 'H'): ?>
                                         <i class="bi bi-check-circle-fill me-1"></i> Hadir
                                     <?php elseif ($st === 'S'): ?>
                                         <i class="bi bi-bandaid-fill me-1"></i> Sakit
                                     <?php elseif ($st === 'I'): ?>
                                         <i class="bi bi-envelope-paper-fill me-1"></i> Izin
+                                    <?php elseif ($st === 'P'): ?>
+                                        <i class="bi bi-briefcase-fill me-1"></i> PKL
                                     <?php else: ?>
                                         <i class="bi bi-x-circle-fill me-1"></i> Alpha
                                     <?php endif; ?>

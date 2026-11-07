@@ -133,8 +133,9 @@ $routes->group('walas', ['filter' => ['auth', 'role:walas', 'force_change_pwd']]
     $routes->get('evaluasi-semester', 'WalasController::evaluasiSemester');
     $routes->get('evaluasi-semester/export-excel', 'WalasController::exportEvaluasiSemesterExcel');
 
-    // Manajemen Siswa Kelas (Aktif / Nonaktifkan)
+    // Manajemen Siswa Kelas (Tambah, Edit, Aktif / Nonaktifkan)
     $routes->get('siswa', 'WalasController::siswa');
+    $routes->post('siswa/simpan', 'WalasController::simpanSiswa');
     $routes->post('siswa/toggle-status/(:num)', 'WalasController::toggleStatusSiswa/$1');
     $routes->post('siswa/nonaktifkan', 'WalasController::nonaktifkanSiswa');
     $routes->post('siswa/auto-detect-gender', 'WalasController::autoDetectGender');

@@ -633,6 +633,12 @@
         }
 
         /* Badges */
+        .bg-opacity-5  { --bs-bg-opacity: 0.05 !important; }
+        .bg-opacity-15 { --bs-bg-opacity: 0.15 !important; }
+        .bg-opacity-20 { --bs-bg-opacity: 0.20 !important; }
+        .bg-opacity-40 { --bs-bg-opacity: 0.40 !important; }
+        .border-opacity-30 { --bs-border-opacity: 0.30 !important; }
+
         .badge.bg-light {
             background-color: rgba(255, 255, 255, 0.08) !important;
             color: #cbd5e1 !important;

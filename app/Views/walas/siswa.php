@@ -19,6 +19,9 @@
         <button type="button" class="btn btn-outline-secondary fw-semibold rounded-pill px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalGenderBatchWalas">
             <i class="bi bi-gender-ambiguous me-1"></i> Ceklis Gender Cepat
         </button>
+        <button type="button" class="btn btn-primary-custom fw-semibold rounded-pill px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalSiswaWalas" onclick="tambahSiswaWalas()">
+            <i class="bi bi-plus-circle-fill me-1"></i> Tambah Siswa Baru
+        </button>
         <a href="<?= site_url('walas/absen') ?>" class="btn btn-outline-primary fw-semibold rounded-pill px-3 shadow-sm">
             <i class="bi bi-pencil-square me-1"></i> Buka Presensi
         </a>
@@ -173,19 +176,26 @@
                                 <?php endif; ?>
                             </td>
                             <td class="text-end">
-                                <?php if (($s['status'] ?? 'Aktif') === 'Aktif'): ?>
-                                    <!-- Tombol Pemicu Modal Mutasi Nonaktif -->
-                                    <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3 py-1 shadow-sm" onclick="bukaModalNonaktif(<?= htmlspecialchars(json_encode($s), ENT_QUOTES, 'UTF-8') ?>)">
-                                        <i class="bi bi-person-x-fill me-1"></i> Nyatakan Keluar / Mutasi
+                                <div class="d-flex align-items-center justify-content-end gap-1">
+                                    <!-- Tombol Edit Siswa -->
+                                    <button type="button" class="btn btn-sm btn-outline-warning rounded-pill px-2 py-1 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalSiswaWalas" onclick="editSiswaWalas(<?= htmlspecialchars(json_encode($s), ENT_QUOTES, 'UTF-8') ?>)" title="Edit Biodata Siswa">
+                                        <i class="bi bi-pencil-square me-1"></i> Edit
                                     </button>
-                                <?php else: ?>
-                                    <form action="<?= site_url('walas/siswa/toggle-status/' . $s['id']) ?>" method="POST" class="d-inline">
-                                        <?= csrf_field() ?>
-                                        <button type="submit" class="btn btn-sm btn-outline-success rounded-pill px-3 py-1 shadow-sm" onclick="return confirm('Aktifkan kembali siswa <?= esc(addslashes($s['nama_siswa'])) ?>?\n\nSiswa ini akan kembali dimunculkan di pengisian presensi.')">
-                                            <i class="bi bi-person-check-fill me-1"></i> Aktifkan Kembali
+
+                                    <?php if (($s['status'] ?? 'Aktif') === 'Aktif'): ?>
+                                        <!-- Tombol Pemicu Modal Mutasi Nonaktif -->
+                                        <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-2 py-1 shadow-sm" onclick="bukaModalNonaktif(<?= htmlspecialchars(json_encode($s), ENT_QUOTES, 'UTF-8') ?>)" title="Nyatakan Siswa Keluar/Pindah">
+                                            <i class="bi bi-person-x-fill me-1"></i> Mutasi / Keluar
                                         </button>
-                                    </form>
-                                <?php endif; ?>
+                                    <?php else: ?>
+                                        <form action="<?= site_url('walas/siswa/toggle-status/' . $s['id']) ?>" method="POST" class="d-inline">
+                                            <?= csrf_field() ?>
+                                            <button type="submit" class="btn btn-sm btn-outline-success rounded-pill px-2 py-1 shadow-sm" onclick="return confirm('Aktifkan kembali siswa <?= esc(addslashes($s['nama_siswa'])) ?>?\n\nSiswa ini akan kembali dimunculkan di pengisian presensi.')">
+                                                <i class="bi bi-person-check-fill me-1"></i> Aktifkan
+                                            </button>
+                                        </form>
+                                    <?php endif; ?>
+                                </div>
                             </td>
                         </tr>
                     <?php endforeach; ?>
@@ -258,6 +268,7 @@
                 </div>
             </form>
         </div>
+    </div>
 </div>
 
 <!-- Modal Ceklis Cepat Gender Massal (Walas) -->
@@ -325,7 +336,98 @@
     </div>
 </div>
 
+<!-- Modal Form Tambah / Edit Siswa (Walas) -->
+<div class="modal fade" id="modalSiswaWalas" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header border-0 pb-0">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="bg-primary text-white rounded-3 p-2">
+                        <i class="bi bi-person-plus-fill fs-5" id="modalSiswaIcon"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title fw-bold text-dark mb-0" id="modalSiswaTitle">Tambah Siswa Baru</h5>
+                        <p class="text-muted small mb-0">Kelas <?= esc($kelas['nama_kelas']) ?></p>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="<?= site_url('walas/siswa/simpan') ?>" method="POST">
+                <?= csrf_field() ?>
+                <input type="hidden" name="id" id="siswa_id">
+                <div class="modal-body py-4">
+                    <div class="mb-3">
+                        <label for="siswa_nisn" class="form-label small fw-semibold text-secondary">NISN (Nomor Induk Siswa Nasional) <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control font-monospace" id="siswa_nisn" name="nisn" required placeholder="Contoh: 0061234501">
+                        <small class="text-muted">NISN sekaligus berfungsi sebagai username login akun siswa.</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="siswa_nama" class="form-label small fw-semibold text-secondary">Nama Lengkap Siswa <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="siswa_nama" name="nama_siswa" required placeholder="Contoh: Ahmad Fauzi">
+                    </div>
+                    <div class="mb-3">
+                        <label for="siswa_jk" class="form-label small fw-semibold text-secondary">Jenis Kelamin <span class="text-danger">*</span></label>
+                        <select class="form-select" id="siswa_jk" name="jenis_kelamin" required>
+                            <option value="L">Laki-Laki (L)</option>
+                            <option value="P">Perempuan (P)</option>
+                        </select>
+                    </div>
+                    <div class="mb-0">
+                        <label for="siswa_status" class="form-label small fw-semibold text-secondary">Status Siswa <span class="text-danger">*</span></label>
+                        <select class="form-select" id="siswa_status" name="status" required>
+                            <option value="Aktif">Aktif (Mengikuti Presensi & KBM)</option>
+                            <option value="Nonaktif">Nonaktif (Pindah / Cuti - Disembunyikan dari Presensi)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary-custom rounded-pill px-4 fw-semibold shadow-sm">
+                        <i class="bi bi-save me-1"></i> Simpan Data Siswa
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
+function tambahSiswaWalas() {
+    const idEl = document.getElementById('siswa_id');
+    const nisnEl = document.getElementById('siswa_nisn');
+    const namaEl = document.getElementById('siswa_nama');
+    const jkEl = document.getElementById('siswa_jk');
+    const statusEl = document.getElementById('siswa_status');
+    const titleEl = document.getElementById('modalSiswaTitle');
+    const iconEl = document.getElementById('modalSiswaIcon');
+
+    if (idEl) idEl.value = '';
+    if (nisnEl) nisnEl.value = '';
+    if (namaEl) namaEl.value = '';
+    if (jkEl) jkEl.value = 'L';
+    if (statusEl) statusEl.value = 'Aktif';
+    if (titleEl) titleEl.textContent = 'Tambah Siswa Baru';
+    if (iconEl) iconEl.className = 'bi bi-person-plus-fill fs-5';
+}
+
+function editSiswaWalas(siswa) {
+    const idEl = document.getElementById('siswa_id');
+    const nisnEl = document.getElementById('siswa_nisn');
+    const namaEl = document.getElementById('siswa_nama');
+    const jkEl = document.getElementById('siswa_jk');
+    const statusEl = document.getElementById('siswa_status');
+    const titleEl = document.getElementById('modalSiswaTitle');
+    const iconEl = document.getElementById('modalSiswaIcon');
+
+    if (idEl) idEl.value = siswa.id;
+    if (nisnEl) nisnEl.value = siswa.nisn || '';
+    if (namaEl) namaEl.value = siswa.nama_siswa || '';
+    if (jkEl) jkEl.value = siswa.jenis_kelamin || 'L';
+    if (statusEl) statusEl.value = siswa.status || 'Aktif';
+    if (titleEl) titleEl.textContent = 'Edit Data Siswa';
+    if (iconEl) iconEl.className = 'bi bi-pencil-square fs-5';
+}
+
 function bukaModalNonaktif(siswa) {
     document.getElementById('mutasi_siswa_id').value = siswa.id;
     document.getElementById('mutasi_nama_siswa').textContent = siswa.nama_siswa;
