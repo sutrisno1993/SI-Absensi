@@ -128,6 +128,12 @@ class LmsController extends BaseController
         $namaMapel = trim((string)$this->request->getPost('nama_mapel'));
 
         if (empty($namaMapel) || $kelasId <= 0) {
+            if ($this->request->isAJAX()) {
+                return $this->response->setJSON([
+                    'status'  => 'error',
+                    'message' => 'Nama Mata Pelajaran dan Kelas wajib diisi.',
+                ]);
+            }
             return redirect()->back()->with('error', 'Nama Mata Pelajaran dan Kelas wajib diisi.');
         }
 
@@ -156,7 +162,19 @@ class LmsController extends BaseController
             ]);
         }
 
-        return redirect()->back()->with('success', "Mata pelajaran \"{$namaMapel}\" berhasil ditambahkan untuk kelas ini!");
+        if ($this->request->isAJAX()) {
+            return $this->response->setJSON([
+                'status'     => 'success',
+                'mapel_id'   => $mapelId,
+                'nama_mapel' => $namaMapel,
+                'kelas_id'   => $kelasId,
+                'message'    => "Mata pelajaran \"{$namaMapel}\" berhasil ditambahkan!",
+                'csrf_token' => csrf_hash(),
+            ]);
+        }
+
+        return redirect()->to("/lms?open_kelas={$kelasId}&open_mapel={$mapelId}")
+            ->with('success', "Mata pelajaran \"{$namaMapel}\" berhasil ditambahkan untuk kelas ini!");
     }
 
     /**

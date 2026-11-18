@@ -406,7 +406,7 @@ function muatSkorLive() {
                         </td>
                         <td class="text-center small text-muted">${tgl}</td>
                         <td class="text-center">
-                            <a href="<?= site_url('lms/asesmen/' . $asesmen['id'] . '/koreksi-essay/') ?>${r.siswa_id}" class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1">
+                            <a href="<?= rtrim(site_url('lms/asesmen/' . $asesmen['id'] . '/koreksi-essay'), '/') ?>/${r.siswa_id}" class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1">
                                 <i class="bi bi-pencil-square me-1"></i> Koreksi Essay
                             </a>
                         </td>
