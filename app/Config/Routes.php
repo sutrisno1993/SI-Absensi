@@ -162,3 +162,42 @@ $routes->group('pj', ['filter' => ['auth', 'role:pj_kelas']], static function ($
 
 // Halaman Publik Live Presensi Orang Tua Murid (Tanpa Login)
 $routes->get('live-presensi/(:segment)', 'LivePresensiController::show/$1');
+
+// Fitur KBM LMS & Asesmen Live Guru (Filter: auth, role:walas,guru_piket,admin)
+$routes->group('lms', ['filter' => ['auth', 'role:walas,guru_piket,admin']], static function ($routes) {
+    $routes->get('/', 'LmsController::index');
+    $routes->get('mapel-by-kelas/(:num)', 'LmsController::getMapelByKelas/$1');
+    $routes->post('mapel/tambah', 'LmsController::tambahMapel');
+    $routes->post('sesi/buat', 'LmsController::buatSesi');
+    $routes->get('sesi/(:num)', 'LmsController::detailSesi/$1');
+    $routes->post('sesi/(:num)/presensi', 'LmsController::simpanPresensi/$1');
+    $routes->post('sesi/(:num)/selesaikan', 'LmsController::selesaikanSesi/$1');
+    $routes->post('sesi/(:num)/asesmen', 'LmsController::simpanAsesmen/$1');
+    $routes->get('asesmen/(:num)', 'LmsController::detailAsesmen/$1');
+    $routes->post('asesmen/(:num)/soal', 'LmsController::tambahSoal/$1');
+    $routes->post('asesmen/(:num)/import-json', 'LmsController::importSoalJson/$1');
+    $routes->get('asesmen/(:num)/live-scores', 'LmsController::getLiveScores/$1');
+    $routes->get('asesmen/(:num)/koreksi-essay/(:num)', 'LmsController::nilaiEssay/$1/$2');
+    $routes->post('asesmen/(:num)/koreksi-essay/(:num)', 'LmsController::simpanNilaiEssay/$1/$2');
+
+    // LKPD Kelompok Guru
+    $routes->post('sesi/(:num)/lkpd', 'LmsController::simpanLkpd/$1');
+    $routes->get('lkpd/(:num)', 'LmsController::detailLkpd/$1');
+    $routes->post('lkpd/(:num)/bagi-acak', 'LmsController::bagiKelompokOtomatis/$1');
+    $routes->post('lkpd/(:num)/tambah-kelompok', 'LmsController::tambahKelompokManual/$1');
+    $routes->post('lkpd/(:num)/nilai', 'LmsController::simpanNilaiLkpd/$1');
+    $routes->post('lkpd/(:num)/toggle-status', 'LmsController::toggleStatusLkpd/$1');
+    $routes->get('lkpd/(:num)/hapus', 'LmsController::hapusLkpd/$1');
+});
+
+// Akses Siswa Mengerjakan Kuis Live (Publik / Tanpa Password)
+$routes->get('live-quiz/(:segment)', 'LmsController::liveQuiz/$1');
+$routes->get('live-quiz/(:segment)/kerjakan', 'LmsController::kerjakanQuiz/$1');
+$routes->post('live-quiz/(:segment)/submit', 'LmsController::submitQuiz/$1');
+$routes->get('live-quiz/(:segment)/selesai', 'LmsController::selesaiQuiz/$1');
+
+// Akses Siswa Pengerjaan LKPD Kelompok (Publik / Tanpa Password)
+$routes->get('live-lkpd/(:segment)', 'LmsController::liveLkpd/$1');
+$routes->post('live-lkpd/(:segment)/gabung', 'LmsController::gabungKelompokLkpd/$1');
+$routes->post('live-lkpd/(:segment)/submit', 'LmsController::submitLkpdJawaban/$1');
+

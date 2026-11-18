@@ -880,6 +880,12 @@
                             <span>Portal Piket</span>
                         </a>
 
+                        <div class="nav-category">KBM & Pembelajaran (LMS)</div>
+                        <a class="sidebar-link <?= str_starts_with(uri_string(), 'lms') ? 'active' : '' ?>" href="<?= site_url('lms') ?>">
+                            <i class="bi bi-mortarboard-fill"></i>
+                            <span>KBM & Asesmen Live</span>
+                        </a>
+
                         <div class="nav-category">Kesiswaan & Pembinaan</div>
                         <a class="sidebar-link <?= str_starts_with(uri_string(), 'admin/pembinaan') ? 'active' : '' ?>" href="<?= site_url('admin/pembinaan') ?>">
                             <i class="bi bi-shield-exclamation"></i>
@@ -906,6 +912,12 @@
 
                     <?php elseif ($role === 'walas'): ?>
                         <!-- Walas Menu -->
+                        <div class="nav-category">KBM & Pembelajaran (LMS)</div>
+                        <a class="sidebar-link <?= str_starts_with(uri_string(), 'lms') ? 'active' : '' ?>" href="<?= site_url('lms') ?>">
+                            <i class="bi bi-mortarboard-fill"></i>
+                            <span>KBM & Asesmen Live</span>
+                        </a>
+
                         <div class="nav-category">Utama</div>
                         <a class="sidebar-link <?= uri_string() === 'walas' ? 'active' : '' ?>" href="<?= site_url('walas') ?>">
                             <i class="bi bi-speedometer2"></i>
