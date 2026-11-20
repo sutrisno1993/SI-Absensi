@@ -136,12 +136,16 @@
                         <th style="width: 140px;">NISN</th>
                         <th>Nama Siswa</th>
                         <th class="text-center" style="width: 140px;">Frekuensi Terlambat</th>
-                        <th style="width: 250px;">Riwayat Tanggal</th>
-                        <th class="text-end" style="width: 160px;">Aksi Cepat</th>
+                        <th style="width: 240px;">Riwayat Tanggal</th>
+                        <th class="text-end" style="width: 280px;">Status Pembinaan &amp; Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php foreach ($siswaTerlambatBina as $idx => $st): ?>
+                        <?php
+                            $sidTerlambat = (int)$st['siswa_id'];
+                            $binaTerlambat = $pembinaanBySiswa[$sidTerlambat] ?? [];
+                        ?>
                         <tr>
                             <td class="text-center fw-bold"><?= $idx + 1 ?></td>
                             <td><span class="badge bg-light text-dark border font-monospace"><?= esc($st['nisn']) ?></span></td>
@@ -157,9 +161,25 @@
                                 </small>
                             </td>
                             <td class="text-end">
-                                <button type="button" class="btn btn-sm btn-danger fw-bold rounded-pill px-3 shadow-sm" onclick="binaSiswaCepat(<?= $st['siswa_id'] ?>, '<?= addslashes($st['nama_siswa']) ?>')">
-                                    <i class="bi bi-pencil-square me-1"></i> Bina Siswa
-                                </button>
+                                <?php if (! empty($binaTerlambat)): ?>
+                                    <div class="d-inline-flex flex-wrap align-items-center justify-content-end gap-2">
+                                        <button type="button" class="btn btn-sm btn-success fw-bold rounded-pill px-3 shadow-sm" onclick="lihatDetailPembinaan(<?= $sidTerlambat ?>, '<?= addslashes(esc($st['nama_siswa'])) ?>', '<?= addslashes(esc($st['nisn'])) ?>')">
+                                            <i class="bi bi-check-circle-fill me-1"></i> Pernah Dibina (<?= count($binaTerlambat) ?>x) &middot; Detail
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-danger fw-bold rounded-pill px-2" title="Tambah Pembinaan Lanjutan" onclick="binaSiswaCepat(<?= $sidTerlambat ?>, '<?= addslashes($st['nama_siswa']) ?>')">
+                                            <i class="bi bi-plus-circle me-1"></i> Bina Lagi
+                                        </button>
+                                    </div>
+                                <?php else: ?>
+                                    <div class="d-inline-flex flex-wrap align-items-center justify-content-end gap-2">
+                                        <span class="badge bg-warning text-dark border border-warning px-2 py-1 rounded-pill">
+                                            <i class="bi bi-exclamation-circle me-1"></i> Belum Dibina
+                                        </span>
+                                        <button type="button" class="btn btn-sm btn-danger fw-bold rounded-pill px-3 shadow-sm" onclick="binaSiswaCepat(<?= $sidTerlambat ?>, '<?= addslashes($st['nama_siswa']) ?>')">
+                                            <i class="bi bi-pencil-square me-1"></i> Bina Siswa
+                                        </button>
+                                    </div>
+                                <?php endif; ?>
                             </td>
                         </tr>
                     <?php endforeach; ?>
@@ -187,11 +207,15 @@
                         <th style="width: 150px;">NISN</th>
                         <th>Nama Siswa</th>
                         <th class="text-center" style="width: 140px;">Akumulasi Alpa</th>
-                        <th class="text-end" style="width: 180px;">Aksi Cepat</th>
+                        <th class="text-end" style="width: 280px;">Status Pembinaan &amp; Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php foreach ($siswaBermasalah as $idx => $sb): ?>
+                        <?php
+                            $sidAlpa = (int)$sb['siswa_id'];
+                            $binaAlpa = $pembinaanBySiswa[$sidAlpa] ?? [];
+                        ?>
                         <tr>
                             <td class="text-center fw-bold"><?= $idx + 1 ?></td>
                             <td><span class="badge bg-light text-dark border font-monospace"><?= esc($sb['nisn']) ?></span></td>
@@ -202,9 +226,25 @@
                                 </span>
                             </td>
                             <td class="text-end">
-                                <button type="button" class="btn btn-sm btn-danger fw-bold rounded-pill px-3 shadow-sm" onclick="binaSiswaCepat(<?= $sb['siswa_id'] ?>, '<?= addslashes($sb['nama_siswa']) ?>')">
-                                    <i class="bi bi-pencil-square me-1"></i> Bina Siswa
-                                </button>
+                                <?php if (! empty($binaAlpa)): ?>
+                                    <div class="d-inline-flex flex-wrap align-items-center justify-content-end gap-2">
+                                        <button type="button" class="btn btn-sm btn-success fw-bold rounded-pill px-3 shadow-sm" onclick="lihatDetailPembinaan(<?= $sidAlpa ?>, '<?= addslashes(esc($sb['nama_siswa'])) ?>', '<?= addslashes(esc($sb['nisn'])) ?>')">
+                                            <i class="bi bi-check-circle-fill me-1"></i> Pernah Dibina (<?= count($binaAlpa) ?>x) &middot; Detail
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-danger fw-bold rounded-pill px-2" title="Tambah Pembinaan Lanjutan" onclick="binaSiswaCepat(<?= $sidAlpa ?>, '<?= addslashes($sb['nama_siswa']) ?>')">
+                                            <i class="bi bi-plus-circle me-1"></i> Bina Lagi
+                                        </button>
+                                    </div>
+                                <?php else: ?>
+                                    <div class="d-inline-flex flex-wrap align-items-center justify-content-end gap-2">
+                                        <span class="badge bg-warning text-dark border border-warning px-2 py-1 rounded-pill">
+                                            <i class="bi bi-exclamation-circle me-1"></i> Belum Dibina
+                                        </span>
+                                        <button type="button" class="btn btn-sm btn-danger fw-bold rounded-pill px-3 shadow-sm" onclick="binaSiswaCepat(<?= $sidAlpa ?>, '<?= addslashes($sb['nama_siswa']) ?>')">
+                                            <i class="bi bi-pencil-square me-1"></i> Bina Siswa
+                                        </button>
+                                    </div>
+                                <?php endif; ?>
                             </td>
                         </tr>
                     <?php endforeach; ?>
@@ -424,10 +464,104 @@
         </div>
     </div>
 </div>
+
+<!-- Modal Detail Riwayat Pembinaan Siswa -->
+<div class="modal fade" id="modalDetailPembinaanSiswa" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header border-0 pb-2">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="bg-success text-white rounded-3 p-2">
+                        <i class="bi bi-journal-check fs-4"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title fw-bold text-dark mb-0" id="detailBinaNamaSiswa">Detail Riwayat Pembinaan</h5>
+                        <div class="small text-muted">
+                            NISN: <span class="font-monospace fw-semibold" id="detailBinaNisn">-</span> &bull;
+                            Total Dibina: <span class="badge bg-success rounded-pill" id="detailBinaTotal">0 Kali</span>
+                        </div>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body py-3" id="detailBinaListContainer" style="max-height: 450px; overflow-y: auto;">
+                <!-- Diisi otomatis via JavaScript -->
+            </div>
+            <div class="modal-footer border-0 pt-2 d-flex justify-content-between">
+                <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Tutup</button>
+                <button type="button" class="btn btn-primary-custom rounded-pill px-4 fw-semibold" id="btnTambahBinaLanjutan">
+                    <i class="bi bi-plus-circle me-1"></i> Tambah Pembinaan Lanjutan
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 <?= $this->endSection() ?>
 
 <?= $this->section('scripts') ?>
 <script>
+    const PEMBINAAN_BY_SISWA = <?= json_encode($pembinaanBySiswa ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function lihatDetailPembinaan(siswaId, namaSiswa, nisn) {
+        const list = PEMBINAAN_BY_SISWA[siswaId] || [];
+        document.getElementById('detailBinaNamaSiswa').textContent = 'Riwayat Pembinaan: ' + namaSiswa;
+        document.getElementById('detailBinaNisn').textContent = nisn || '-';
+        document.getElementById('detailBinaTotal').textContent = list.length + ' Kali Dibina';
+
+        const container = document.getElementById('detailBinaListContainer');
+        if (list.length === 0) {
+            container.innerHTML = '<div class="text-center py-4 text-muted">Belum ada catatan pembinaan untuk siswa ini.</div>';
+        } else {
+            let html = '<div class="d-flex flex-column gap-3">';
+            list.forEach((item, idx) => {
+                const berkasBtn = item.file_url
+                    ? `<a href="${escapeHtml(item.file_url)}" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1">
+                           <i class="bi bi-paperclip me-1"></i> Lihat Bukti Berkas
+                       </a>`
+                    : `<span class="badge bg-light text-muted border">Tanpa Lampiran Berkas</span>`;
+
+                html += `
+                    <div class="p-3 rounded-3 border bg-light">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2 pb-2 border-bottom">
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="badge bg-success rounded-pill">#${idx + 1}</span>
+                                <span class="fw-bold text-dark"><i class="bi bi-calendar-event me-1 text-primary"></i>${escapeHtml(item.tanggal_formatted)}</span>
+                                <span class="badge bg-primary bg-opacity-15 text-primary border border-primary px-2 py-1">${escapeHtml(item.jenis_tindakan)}</span>
+                            </div>
+                            <div>${berkasBtn}</div>
+                        </div>
+                        <div class="small text-secondary mb-2" style="white-space: pre-line;">${escapeHtml(item.catatan_pembinaan)}</div>
+                        <div class="text-end">
+                            <small class="text-muted" style="font-size: 0.74rem;"><i class="bi bi-person-badge me-1"></i>Dicatat oleh: <strong>${escapeHtml(item.nama_walas)}</strong></small>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        const btnLanjut = document.getElementById('btnTambahBinaLanjutan');
+        btnLanjut.onclick = function() {
+            const modalDetail = bootstrap.Modal.getInstance(document.getElementById('modalDetailPembinaanSiswa'));
+            if (modalDetail) modalDetail.hide();
+            binaSiswaCepat(siswaId, namaSiswa);
+        };
+
+        const modal = new bootstrap.Modal(document.getElementById('modalDetailPembinaanSiswa'));
+        modal.show();
+    }
+
     function binaSiswaCepat(siswaId, namaSiswa) {
         var selectSiswa = document.getElementById('modal_siswa_id');
         if (selectSiswa) {

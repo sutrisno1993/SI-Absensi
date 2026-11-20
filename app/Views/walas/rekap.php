@@ -110,7 +110,7 @@
                     <th class="text-center" style="width: 100px;">Izin (I)</th>
                     <th class="text-center" style="width: 100px;">Alpa (A)</th>
                     <th class="text-center" style="width: 120px;">Terlambat (T)</th>
-                    <th class="text-center" style="width: 150px;">Status Disiplin</th>
+                    <th class="text-center" style="width: 220px;">Status Disiplin &amp; Pembinaan</th>
                 </tr>
             </thead>
             <tbody>
@@ -125,6 +125,8 @@
                         <?php 
                             $totA = (int)($r['total_a'] ?? 0);
                             $totT = (int)($r['total_t'] ?? 0);
+                            $sid  = (int)($r['siswa_id'] ?? $r['id'] ?? 0);
+                            $binaList = $pembinaanBySiswa[$sid] ?? [];
                         ?>
                         <tr>
                             <td class="text-center fw-semibold text-muted"><?= $idx + 1 ?></td>
@@ -144,9 +146,13 @@
                                 </span>
                             </td>
                             <td class="text-center">
-                                <?php if ($totA > 3 || $totT > 3): ?>
+                                <?php if (! empty($binaList)): ?>
+                                    <button type="button" class="btn btn-sm btn-success fw-bold rounded-pill px-3 py-1 shadow-sm" onclick="lihatDetailPembinaan(<?= $sid ?>, '<?= addslashes(esc($r['nama_siswa'])) ?>', '<?= addslashes(esc($r['nisn'])) ?>')">
+                                        <i class="bi bi-check-circle-fill me-1"></i> Pernah Dibina (<?= count($binaList) ?>x) &middot; Detail
+                                    </button>
+                                <?php elseif ($totA > 3 || $totT > 3): ?>
                                     <span class="badge bg-danger bg-opacity-10 text-danger border border-danger px-2 py-1">
-                                        <i class="bi bi-exclamation-triangle-fill me-1"></i> Wajib Dibina
+                                        <i class="bi bi-exclamation-triangle-fill me-1"></i> Wajib Dibina (Belum Dibina)
                                     </span>
                                 <?php elseif ($totA > 0 || $totT > 1): ?>
                                     <span class="badge bg-warning bg-opacity-10 text-warning border border-warning px-2 py-1">
@@ -166,7 +172,89 @@
     </div>
 </div>
 
+<!-- Modal Detail Riwayat Pembinaan Siswa -->
+<div class="modal fade" id="modalDetailPembinaanSiswa" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header border-0 pb-2">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="bg-success text-white rounded-3 p-2">
+                        <i class="bi bi-journal-check fs-4"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title fw-bold text-dark mb-0" id="detailBinaNamaSiswa">Detail Riwayat Pembinaan</h5>
+                        <div class="small text-muted">
+                            NISN: <span class="font-monospace fw-semibold" id="detailBinaNisn">-</span> &bull;
+                            Total Dibina: <span class="badge bg-success rounded-pill" id="detailBinaTotal">0 Kali</span>
+                        </div>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body py-3" id="detailBinaListContainer" style="max-height: 450px; overflow-y: auto;"></div>
+            <div class="modal-footer border-0 pt-2">
+                <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Tutup</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
+const PEMBINAAN_BY_SISWA = <?= json_encode($pembinaanBySiswa ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function lihatDetailPembinaan(siswaId, namaSiswa, nisn) {
+    const list = PEMBINAAN_BY_SISWA[siswaId] || [];
+    document.getElementById('detailBinaNamaSiswa').textContent = 'Riwayat Pembinaan: ' + namaSiswa;
+    document.getElementById('detailBinaNisn').textContent = nisn || '-';
+    document.getElementById('detailBinaTotal').textContent = list.length + ' Kali Dibina';
+
+    const container = document.getElementById('detailBinaListContainer');
+    if (list.length === 0) {
+        container.innerHTML = '<div class="text-center py-4 text-muted">Belum ada catatan pembinaan untuk siswa ini.</div>';
+    } else {
+        let html = '<div class="d-flex flex-column gap-3">';
+        list.forEach((item, idx) => {
+            const berkasBtn = item.file_url
+                ? `<a href="${escapeHtml(item.file_url)}" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1">
+                       <i class="bi bi-paperclip me-1"></i> Lihat Bukti Berkas
+                   </a>`
+                : `<span class="badge bg-light text-muted border">Tanpa Lampiran Berkas</span>`;
+
+            html += `
+                <div class="p-3 rounded-3 border bg-light">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2 pb-2 border-bottom">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-success rounded-pill">#${idx + 1}</span>
+                            <span class="fw-bold text-dark"><i class="bi bi-calendar-event me-1 text-primary"></i>${escapeHtml(item.tanggal_formatted)}</span>
+                            <span class="badge bg-primary bg-opacity-15 text-primary border border-primary px-2 py-1">${escapeHtml(item.jenis_tindakan)}</span>
+                        </div>
+                        <div>${berkasBtn}</div>
+                    </div>
+                    <div class="small text-secondary mb-2" style="white-space: pre-line;">${escapeHtml(item.catatan_pembinaan)}</div>
+                    <div class="text-end">
+                        <small class="text-muted" style="font-size: 0.74rem;"><i class="bi bi-person-badge me-1"></i>Dicatat oleh: <strong>${escapeHtml(item.nama_walas)}</strong></small>
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+        container.innerHTML = html;
+    }
+
+    const modal = new bootstrap.Modal(document.getElementById('modalDetailPembinaanSiswa'));
+    modal.show();
+}
+
 function toggleWalasFilter() {
     const val = document.getElementById('selectWalasPeriode').value;
     const gb = document.getElementById('groupWalasBulan');

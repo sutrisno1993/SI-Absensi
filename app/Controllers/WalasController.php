@@ -32,6 +32,29 @@ class WalasController extends BaseController
     }
 
     /**
+     * Helper: Mengelompokkan seluruh riwayat pembinaan siswa di kelas ini berdasarkan siswa_id
+     */
+    protected function getPembinaanBySiswaMap(int $kelasId): array
+    {
+        $allPembinaan = $this->pembinaanModel->getRiwayatPembinaan(null, $kelasId);
+        $map = [];
+        foreach ($allPembinaan as $rp) {
+            $sid = (int)$rp['siswa_id'];
+            $map[$sid][] = [
+                'id'                => (int)$rp['id'],
+                'tanggal_tindakan'  => $rp['tanggal_tindakan'],
+                'tanggal_formatted' => date('d/m/Y', strtotime($rp['tanggal_tindakan'])),
+                'jenis_tindakan'    => $rp['jenis_tindakan'],
+                'catatan_pembinaan' => $rp['catatan_pembinaan'],
+                'nama_walas'        => $rp['nama_walas'] ?? 'Wali Kelas',
+                'file_bukti'        => $rp['file_bukti'] ?? null,
+                'file_url'          => !empty($rp['file_bukti']) ? base_url('uploads/pembinaan/' . $rp['file_bukti']) : null,
+            ];
+        }
+        return $map;
+    }
+
+    /**
      * Dashboard Wali Kelas
      */
     public function index()
@@ -60,8 +83,9 @@ class WalasController extends BaseController
         $tahunSekarang = date('Y');
         $rekapBulanIni = $this->absensiModel->getRekapKelas($kelasId, $bulanSekarang, $tahunSekarang);
 
-        // 4. Riwayat pembinaan terakhir
-        $riwayatPembinaan = $this->pembinaanModel->getRiwayatPembinaan($walasId, $kelasId);
+        // 4. Riwayat pembinaan kelas & mapping per siswa
+        $riwayatPembinaan = $this->pembinaanModel->getRiwayatPembinaan(null, $kelasId);
+        $pembinaanBySiswa = $this->getPembinaanBySiswaMap($kelasId);
 
         // 5. Daftar seluruh siswa aktif untuk dropdown form bina siswa
         $daftarSiswa = $this->siswaModel->getSiswaAktifByKelas($kelasId);
@@ -77,6 +101,7 @@ class WalasController extends BaseController
             'siswaTerlambatLapor'   => $siswaTerlambatLapor,
             'rekapBulanIni'         => $rekapBulanIni,
             'riwayatPembinaan'      => $riwayatPembinaan,
+            'pembinaanBySiswa'      => $pembinaanBySiswa,
             'daftarSiswa'           => $daftarSiswa,
             'tanggalKelewat'        => $tanggalKelewat,
         ]);
@@ -224,18 +249,20 @@ class WalasController extends BaseController
             $periode, $bulan, $tahun, $semester, null, $startDate, $endDate
         );
         $rekap = $this->absensiModel->getRekapKelas((int)$kelas['id'], $startDateResolved, $endDateResolved);
+        $pembinaanBySiswa = $this->getPembinaanBySiswaMap((int)$kelas['id']);
 
         return view('walas/rekap', [
-            'title'        => 'Rekap Presensi Kelas ' . $kelas['nama_kelas'],
-            'kelas'        => $kelas,
-            'periode'      => $periode,
-            'bulan'        => $bulan,
-            'tahun'        => $tahun,
-            'semester'     => $semester,
-            'startDate'    => $startDate,
-            'endDate'      => $endDate,
-            'labelPeriode' => $labelPeriode,
-            'rekap'        => $rekap,
+            'title'            => 'Rekap Presensi Kelas ' . $kelas['nama_kelas'],
+            'kelas'            => $kelas,
+            'periode'          => $periode,
+            'bulan'            => $bulan,
+            'tahun'            => $tahun,
+            'semester'         => $semester,
+            'startDate'        => $startDate,
+            'endDate'          => $endDate,
+            'labelPeriode'     => $labelPeriode,
+            'rekap'            => $rekap,
+            'pembinaanBySiswa' => $pembinaanBySiswa,
         ]);
     }
 
@@ -945,6 +972,7 @@ class WalasController extends BaseController
         $siswaWajibBina      = count(array_filter($rekapTerlambat, static fn($r) => (int)$r['total_terlambat'] > 3));
         $totalKejadian       = count($logTerlambat);
         $daftarSiswa         = $this->siswaModel->getSiswaAktifByKelas($kelasId);
+        $pembinaanBySiswa    = $this->getPembinaanBySiswaMap($kelasId);
 
         return view('walas/keterlambatan', [
             'title'               => 'Laporan Keterlambatan Kelas ' . $kelas['nama_kelas'],
@@ -952,6 +980,7 @@ class WalasController extends BaseController
             'rekapTerlambat'      => $rekapTerlambat,
             'logTerlambat'        => $logTerlambat,
             'daftarSiswa'         => $daftarSiswa,
+            'pembinaanBySiswa'    => $pembinaanBySiswa,
             'startDate'           => $startDate,
             'endDate'             => $endDate,
             'totalSiswaTerlambat' => $totalSiswaTerlambat,
